@@ -4265,6 +4265,26 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
                     maybeEmitEntryPointDepthReplacingExecutionMode(
                         entryPoint,
                         referencedBuiltinIRVars);
+
+                    for (auto builtin : referencedBuiltinIRVars)
+                    {
+                        if (builtin->getOp() == kIROp_SPIRVAsmOperandBuiltinVar)
+                        {
+                            const auto kind = (SpvBuiltIn)(getIntVal(builtin->getOperand(0)));
+                            if (kind == SpvBuiltInPrimitiveId)
+                            {
+                                requireSPIRVCapability(SpvCapabilityGeometry);
+                                SpvInst* spvGlobalInst;
+                                if (m_mapIRInstToSpvInst.tryGetValue(builtin, spvGlobalInst))
+                                {
+                                    _maybeEmitInterpolationModifierDecoration(
+                                        IRInterpolationMode::NoInterpolation,
+                                        getID(spvGlobalInst));
+                                }
+                            }
+                        }
+                    }
+
                     for (auto decor : entryPoint->getDecorations())
                     {
                         switch (decor->getOp())
