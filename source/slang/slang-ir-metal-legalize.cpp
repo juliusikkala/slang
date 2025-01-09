@@ -1938,6 +1938,7 @@ struct LegalizeMetalEntryPointContext
     void legalizeEntryPointForMetal(EntryPointInfo entryPoint)
     {
         // Input Parameter Legalize
+        depointerizeInputParams(entryPoint.entryPointFunc);
         hoistEntryPointParameterFromStruct(entryPoint);
         packStageInParameters(entryPoint);
         flattenInputParameters(entryPoint);
