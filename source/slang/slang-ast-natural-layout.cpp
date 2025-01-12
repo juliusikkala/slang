@@ -163,6 +163,9 @@ NaturalSize ASTNaturalLayoutContext::_calcSizeImpl(Type* type)
             size.append(curSize);
         }
 
+        // Ensure total tuple size matches alignment.
+        size.size = NaturalSize::calcAligned(size.size, size.alignment);
+
         return size;
     }
     else if (auto declRefType = as<DeclRefType>(type))
@@ -208,6 +211,9 @@ NaturalSize ASTNaturalLayoutContext::_calcSizeImpl(Type* type)
                 }
                 size.append(fieldSize);
             }
+
+            // Ensure total struct size matches alignment.
+            size.size = NaturalSize::calcAligned(size.size, size.alignment);
 
             // Set the cached result to the size.
             m_typeToSize.set(type, size);
