@@ -129,14 +129,6 @@ void CLikeSourceEmitter::emitPreModuleImpl()
         m_writer->emit("\n");
     }
 }
-void CLikeSourceEmitter::emitPostModuleImpl()
-{
-    if (m_requiredAfter.requireComputeDerivatives.getLength() > 0)
-    {
-        m_writer->emit(m_requiredAfter.requireComputeDerivatives);
-        m_writer->emit("\n");
-    }
-}
 
 //
 // Types
@@ -274,11 +266,6 @@ void CLikeSourceEmitter::emitSimpleType(IRType* type)
     case kIROp_UIntPtrType:
         return UnownedStringSlice("uintptr_t");
 
-    case kIROp_Int8x4PackedType:
-        return UnownedStringSlice("int8_t4_packed");
-    case kIROp_UInt8x4PackedType:
-        return UnownedStringSlice("uint8_t4_packed");
-
     case kIROp_HalfType:
         return UnownedStringSlice("half");
 
@@ -351,6 +338,20 @@ IRNumThreadsDecoration* CLikeSourceEmitter::getComputeThreadGroupSize(
         *outWaveSize = Int(getIntVal(decor->getOperand(0)));
     }
     return decor;
+}
+
+String CLikeSourceEmitter::getTargetBuiltinVarName(IRInst* inst, IRTargetBuiltinVarName builtinName)
+{
+    switch (builtinName)
+    {
+    case IRTargetBuiltinVarName::SpvInstanceIndex:
+        return "gl_InstanceIndex";
+    case IRTargetBuiltinVarName::SpvBaseInstance:
+        return "gl_BaseInstance";
+    }
+    if (auto linkage = inst->findDecoration<IRLinkageDecoration>())
+        return linkage->getMangledName();
+    return generateName(inst);
 }
 
 List<IRWitnessTableEntry*> CLikeSourceEmitter::getSortedWitnessTableEntries(
@@ -1216,6 +1217,11 @@ String CLikeSourceEmitter::generateName(IRInst* inst)
         return externCppDecoration->getName();
     }
 
+    if (auto builtinTargetVarDecoration = inst->findDecoration<IRTargetBuiltinVarDecoration>())
+    {
+        return getTargetBuiltinVarName(inst, builtinTargetVarDecoration->getBuiltinVarName());
+    }
+
     // If we have a name hint on the instruction, then we will try to use that
     // to provide the basis for the actual name in the output code.
     if (auto nameHintDecoration = inst->findDecoration<IRNameHintDecoration>())
@@ -1230,9 +1236,9 @@ String CLikeSourceEmitter::generateName(IRInst* inst)
         return linkageDecoration->getMangledName();
     }
 
-    switch (inst->getOp())
+    if (auto ptrType = as<IRPtrType>(inst))
     {
-    case kIROp_HLSLConstBufferPointerType:
+        if (ptrType->getAddressSpace() == AddressSpace::UserPointer)
         {
             StringBuilder sb;
             sb << "BufferPointer_";
@@ -1240,9 +1246,8 @@ String CLikeSourceEmitter::generateName(IRInst* inst)
             sb << "_" << Int32(getID(inst));
             return sb.produceString();
         }
-    default:
-        break;
     }
+
     // Otherwise fall back to a construct temporary name
     // for the instruction.
     StringBuilder sb;
@@ -1323,8 +1328,6 @@ void CLikeSourceEmitter::emitSimpleValueImpl(IRInst* inst)
                         return;
                     }
                 case BaseType::UInt:
-                case BaseType::Int8x4Packed:
-                case BaseType::UInt8x4Packed:
                     {
                         m_writer->emit(UInt(uint32_t(litInst->value.intVal)));
                         m_writer->emit("U");
@@ -1421,6 +1424,7 @@ bool CLikeSourceEmitter::shouldFoldInstIntoUseSites(IRInst* inst)
     // or statement).
     case kIROp_UpdateElement:
     case kIROp_DefaultConstruct:
+    case kIROp_MetalCastToDepthTexture:
         return false;
 
     // Always fold these in, because they are trivial
@@ -1476,6 +1480,8 @@ bool CLikeSourceEmitter::shouldFoldInstIntoUseSites(IRInst* inst)
     case kIROp_MakeArray:
     case kIROp_swizzleSet:
     case kIROp_MakeArrayFromElement:
+    case kIROp_MakeCoopVector:
+
         return false;
     }
 
@@ -2369,6 +2375,7 @@ void CLikeSourceEmitter::defaultEmitInstExpr(IRInst* inst, const EmitOpInfo& inO
         emitSimpleValue(inst);
         break;
 
+    case kIROp_MakeCoopVector:
     case kIROp_MakeVector:
     case kIROp_MakeMatrix:
     case kIROp_VectorReshape:
@@ -3046,10 +3053,6 @@ void CLikeSourceEmitter::defaultEmitInstExpr(IRInst* inst, const EmitOpInfo& inO
                 m_requiredPreludes.add(preludeTextInst);
             break;
         }
-    case kIROp_RequireGLSLExtension:
-        {
-            break; // should already have set requirement; case covered for empty intrinsic block
-        }
     case kIROp_RequireComputeDerivative:
         {
             break; // should already have been parsed and used.
@@ -3057,6 +3060,11 @@ void CLikeSourceEmitter::defaultEmitInstExpr(IRInst* inst, const EmitOpInfo& inO
     case kIROp_GlobalValueRef:
         {
             emitOperand(as<IRGlobalValueRef>(inst)->getOperand(0), getInfo(EmitOp::General));
+            break;
+        }
+    case kIROp_RequireTargetExtension:
+        {
+            emitRequireExtension(as<IRRequireTargetExtension>(inst));
             break;
         }
     default:
@@ -3103,6 +3111,51 @@ void CLikeSourceEmitter::_emitInst(IRInst* inst)
         m_writer->advanceToSourceLocation(inst->sourceLoc);
     }
 
+    if (auto coopVecType = as<IRCoopVectorType>(inst->getDataType()))
+    {
+        switch (inst->getOp())
+        {
+        case kIROp_MakeCoopVector:
+            {
+                emitType(coopVecType, getName(inst));
+                m_writer->emit(";\n");
+
+                auto elemCount = as<IRIntLit>(coopVecType->getOperand(1));
+                IRIntegerValue elemCountValue = elemCount->getValue();
+                for (IRIntegerValue i = 0; i < elemCountValue; ++i)
+                {
+                    m_writer->emit(getName(inst));
+                    m_writer->emit(".WriteToIndex(");
+                    m_writer->emit(i);
+                    m_writer->emit(", ");
+                    emitDereferenceOperand(inst->getOperand(i), getInfo(EmitOp::General));
+                    m_writer->emit(");\n");
+                }
+                return;
+            }
+        case kIROp_Call:
+            emitType(coopVecType, getName(inst));
+            m_writer->emit(";\n");
+
+            m_writer->emit(getName(inst));
+            m_writer->emit(".CopyFrom(");
+            emitCallExpr((IRCall*)inst, getInfo(EmitOp::General));
+            m_writer->emit(");\n");
+            return;
+        case kIROp_Load:
+            emitType(coopVecType, getName(inst));
+            m_writer->emit(";\n");
+
+            m_writer->emit(getName(inst));
+            m_writer->emit(".CopyFrom(");
+            emitDereferenceOperand(inst->getOperand(0), getInfo(EmitOp::General));
+            m_writer->emit(");\n");
+            return;
+        default:
+            break;
+        }
+    }
+
     switch (inst->getOp())
     {
     default:
@@ -3137,6 +3190,7 @@ void CLikeSourceEmitter::_emitInst(IRInst* inst)
     case kIROp_AtomicCompareExchange:
     case kIROp_StructuredBufferGetDimensions:
     case kIROp_MetalAtomicCast:
+    case kIROp_MetalCastToDepthTexture:
         emitInstStmt(inst);
         break;
 
@@ -3348,11 +3402,21 @@ void CLikeSourceEmitter::_emitStoreImpl(IRStore* store)
 {
     auto srcVal = store->getVal();
     auto dstPtr = store->getPtr();
-    auto prec = getInfo(EmitOp::Assign);
-    emitDereferenceOperand(dstPtr, leftSide(getInfo(EmitOp::General), prec));
-    m_writer->emit(" = ");
-    emitOperand(srcVal, rightSide(prec, getInfo(EmitOp::General)));
-    m_writer->emit(";\n");
+    if (isPointerOfType(dstPtr->getDataType(), kIROp_CoopVectorType))
+    {
+        emitDereferenceOperand(dstPtr, getInfo(EmitOp::General));
+        m_writer->emit(".CopyFrom(");
+        emitDereferenceOperand(srcVal, getInfo(EmitOp::General));
+        m_writer->emit(");\n");
+    }
+    else
+    {
+        auto prec = getInfo(EmitOp::Assign);
+        emitDereferenceOperand(dstPtr, leftSide(getInfo(EmitOp::General), prec));
+        m_writer->emit(" = ");
+        emitOperand(srcVal, rightSide(prec, getInfo(EmitOp::General)));
+        m_writer->emit(";\n");
+    }
 }
 
 void CLikeSourceEmitter::_emitInstAsDefaultInitializedVar(IRInst* inst, IRType* type)
@@ -3728,10 +3792,6 @@ void CLikeSourceEmitter::emitSimpleFuncImpl(IRFunc* func)
         emitEntryPointAttributes(func, entryPointDecor);
     }
 
-    // Deal with required features/capabilities of the function
-    //
-    handleRequiredCapabilitiesImpl(func);
-
     emitFunctionPreambleImpl(func);
 
     emitFuncDecorations(func);
@@ -3977,8 +4037,6 @@ void CLikeSourceEmitter::emitVecNOrScalar(
                 m_writer->emit("ushort");
                 break;
             case kIROp_UIntType:
-            case kIROp_Int8x4PackedType:
-            case kIROp_UInt8x4PackedType:
                 m_writer->emit("uint");
                 break;
             case kIROp_UInt64Type:
@@ -4637,7 +4695,45 @@ void CLikeSourceEmitter::emitVar(IRVar* varDecl)
     {
         if (store->getPtr() == varDecl)
         {
-            _emitInstAsVarInitializerImpl(store->getVal());
+            const bool isCoopVectorType = varType->getOp() == kIROp_CoopVectorType;
+            if (isCoopVectorType && store->getVal()->getOp() == kIROp_Load)
+            {
+                m_writer->emit(";\n");
+                m_writer->emit(getName(varDecl));
+                m_writer->emit(".CopyFrom(");
+                emitDereferenceOperand(store->getVal()->getOperand(0), getInfo(EmitOp::General));
+                m_writer->emit(")");
+            }
+            else if (isCoopVectorType && store->getVal()->getOp() == kIROp_Call)
+            {
+                m_writer->emit(";\n");
+                m_writer->emit(getName(varDecl));
+                m_writer->emit(".CopyFrom(");
+                emitCallExpr((IRCall*)store->getVal(), getInfo(EmitOp::General));
+                m_writer->emit(")");
+            }
+            else if (isCoopVectorType && store->getVal()->getOp() == kIROp_MakeCoopVector)
+            {
+                auto coopVecType = as<IRCoopVectorType>(store->getVal()->getDataType());
+                auto elemCount = as<IRIntLit>(coopVecType->getOperand(1));
+                IRIntegerValue elemCountValue = elemCount->getValue();
+                for (IRIntegerValue i = 0; i < elemCountValue; ++i)
+                {
+                    m_writer->emit(";\n");
+                    m_writer->emit(getName(varDecl));
+                    m_writer->emit(".WriteToIndex(");
+                    m_writer->emit(i);
+                    m_writer->emit(", ");
+                    emitDereferenceOperand(
+                        store->getVal()->getOperand(i),
+                        getInfo(EmitOp::General));
+                    m_writer->emit(")");
+                }
+            }
+            else
+            {
+                _emitInstAsVarInitializerImpl(store->getVal());
+            }
         }
     }
 
@@ -4890,6 +4986,10 @@ static bool _shouldSkipFuncEmit(IRInst* func)
 void CLikeSourceEmitter::emitGlobalInstImpl(IRInst* inst)
 {
     m_writer->advanceToSourceLocation(inst->sourceLoc);
+
+    // Deal with required features/capabilities of the global inst
+    //
+    handleRequiredCapabilitiesImpl(inst);
 
     switch (inst->getOp())
     {

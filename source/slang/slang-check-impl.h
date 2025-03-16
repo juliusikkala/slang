@@ -172,15 +172,17 @@ struct BasicTypeKeyPair
 
 struct OperatorOverloadCacheKey
 {
-    intptr_t operatorName;
+    int32_t operatorName;
+    bool isGLSLMode;
     BasicTypeKey args[2];
     bool operator==(OperatorOverloadCacheKey key) const
     {
-        return operatorName == key.operatorName && args[0] == key.args[0] && args[1] == key.args[1];
+        return operatorName == key.operatorName && args[0] == key.args[0] &&
+               args[1] == key.args[1] && isGLSLMode == key.isGLSLMode;
     }
     HashCode getHashCode() const
     {
-        return combineHash((int)(UInt64)(void*)(operatorName), args[0].getRaw(), args[1].getRaw());
+        return combineHash(operatorName, args[0].getRaw(), args[1].getRaw(), isGLSLMode ? 1 : 0);
     }
     bool fromOperatorExpr(OperatorExpr* opExpr)
     {
@@ -299,10 +301,28 @@ struct OverloadCandidate
     SubstitutionSet subst;
 };
 
-struct TypeCheckingCache
+struct ResolvedOperatorOverload
 {
-    Dictionary<OperatorOverloadCacheKey, OverloadCandidate> resolvedOperatorOverloadCache;
+    // The resolved decl.
+    Decl* decl;
+
+    // The cached overload candidate in the current TypeCheckingCache.
+    // Note that a `OverloadCandidate` object is not migratable over different
+    // Linkages (compile sessions), so we will need to use `cacheVersion` to track
+    // if this `candidate` is valid for the current session. If not, we will
+    // recreate it from `decl`.
+    OverloadCandidate candidate;
+    // The version of the TypeCheckingCache for which the cached candidate is valid.
+    int cacheVersion;
+};
+
+struct TypeCheckingCache : public RefObject
+{
+    Dictionary<OperatorOverloadCacheKey, ResolvedOperatorOverload> resolvedOperatorOverloadCache;
     Dictionary<BasicTypeKeyPair, ConversionCost> conversionCostCache;
+
+    // The version used to invalidate the cached declRefs in ResolvedOperatorOverload entries.
+    int version = 0;
 };
 
 enum class CoercionSite
@@ -635,6 +655,9 @@ struct SharedSemanticsContext : public RefObject
 
     DiagnosticSink* m_sink = nullptr;
 
+    // Whether the current module has imported the GLSL module.
+    ModuleDecl* glslModuleDecl = nullptr;
+
     /// (optional) modules that comes from previously processed translation units in the
     /// front-end request that are made visible to the module being checked. This allows
     /// `import` to use them instead of trying to find the files in file system.
@@ -760,6 +783,12 @@ public:
         m_mapTypePairToImplicitCastMethod[key] = candidate;
     }
 
+    bool* isCStyleType(Type* type) { return m_isCStyleTypeCache.tryGetValue(type); }
+
+    void cacheCStyleType(Type* type, bool isCStyle)
+    {
+        m_isCStyleTypeCache.addIfNotExists(type, isCStyle);
+    }
     // Get the inner most generic decl that a decl-ref is dependent on.
     // For example, `Foo<T>` depends on the generic decl that defines `T`.
     //
@@ -889,6 +918,7 @@ private:
     Dictionary<DeclRef<Decl>, InheritanceInfo> m_mapDeclRefToInheritanceInfo;
     Dictionary<TypePair, SubtypeWitness*> m_mapTypePairToSubtypeWitness;
     Dictionary<ImplicitCastMethodKey, ImplicitCastMethod> m_mapTypePairToImplicitCastMethod;
+    Dictionary<Type*, bool> m_isCStyleTypeCache;
 };
 
 /// Local/scoped state of the semantic-checking system
@@ -1466,7 +1496,7 @@ public:
     /// by calling a function that indirectly reads the variable) will be allowed and then
     /// exhibit undefined behavior at runtime.
     ///
-    void _validateCircularVarDefinition(VarDeclBase* varDecl);
+    IntVal* _validateCircularVarDefinition(VarDeclBase* varDecl);
 
     bool shouldSkipChecking(Decl* decl, DeclCheckState state);
 
@@ -1482,7 +1512,7 @@ public:
     /// Registers a type as conforming to IDifferentiable, along with a witness
     /// describing the relationship.
     ///
-    void addDifferentiableTypeToDiffTypeRegistry(DeclRefType* type, SubtypeWitness* witness);
+    void addDifferentiableTypeToDiffTypeRegistry(Type* type, SubtypeWitness* witness);
     void maybeRegisterDifferentiableTypeImplRecursive(ASTBuilder* builder, Type* type);
 
     // Construct the differential for 'type', if it exists.
@@ -1504,7 +1534,10 @@ public:
     // perform implicit type conversion.
     ConversionCost getImplicitConversionCost(Decl* decl);
 
-    ConversionCost getImplicitConversionCostWithKnownArg(Decl* decl, Type* toType, Expr* arg);
+    ConversionCost getImplicitConversionCostWithKnownArg(
+        DeclRef<Decl> decl,
+        Type* toType,
+        Expr* arg);
 
 
     BuiltinConversionKind getImplicitConversionBuiltinKind(Decl* decl);
@@ -1671,6 +1704,7 @@ public:
 
     AttributeDecl* lookUpAttributeDecl(Name* attributeName, Scope* scope);
 
+    bool hasFloatArgs(Attribute* attr, int numArgs);
     bool hasIntArgs(Attribute* attr, int numArgs);
     bool hasStringArgs(Attribute* attr, int numArgs);
 
@@ -2027,6 +2061,8 @@ public:
     void validateEnumTagType(Type* type, SourceLoc const& loc);
 
     void checkStmt(Stmt* stmt, SemanticsContext const& context);
+
+    Stmt* maybeParseStmt(Stmt* stmt, const SemanticsContext& context);
 
     void getGenericParams(
         GenericDecl* decl,
@@ -2780,6 +2816,25 @@ public:
     void suggestCompletionItems(
         CompletionSuggestions::ScopeKind scopeKind,
         LookupResult const& lookupResult);
+
+    bool createInvokeExprForExplicitCtor(
+        Type* toType,
+        InitializerListExpr* fromInitializerListExpr,
+        Expr** outExpr);
+
+    bool createInvokeExprForSynthesizedCtor(
+        Type* toType,
+        InitializerListExpr* fromInitializerListExpr,
+        Expr** outExpr);
+
+    Expr* _createCtorInvokeExpr(Type* toType, const SourceLoc& loc, const List<Expr*>& coercedArgs);
+    bool _hasExplicitConstructor(StructDecl* structDecl, bool checkBaseType);
+    ConstructorDecl* _getSynthesizedConstructor(
+        StructDecl* structDecl,
+        ConstructorDecl::ConstructorFlavor flavor);
+    bool isCStyleType(Type* type, HashSet<Type*>& isVisit);
+
+    void addVisibilityModifier(Decl* decl, DeclVisibility vis);
 };
 
 
@@ -2851,14 +2906,8 @@ public:
     // deal with this cases here, even if they are no-ops.
     //
 
-#define CASE(NAME)                                                                           \
-    Expr* visit##NAME(NAME* expr)                                                            \
-    {                                                                                        \
-        if (!getShared()->isInLanguageServer())                                              \
-            SLANG_DIAGNOSE_UNEXPECTED(getSink(), expr, "should not appear in input syntax"); \
-        expr->type = m_astBuilder->getErrorType();                                           \
-        return expr;                                                                         \
-    }
+#define CASE(NAME) \
+    Expr* visit##NAME(NAME* expr) { return expr; }
 
     CASE(DerefExpr)
     CASE(MakeRefExpr)
@@ -2999,6 +3048,8 @@ struct SemanticsDeclVisitorBase : public SemanticsVisitor
     }
 
     void checkModule(ModuleDecl* programNode);
+
+    ConstructorDecl* createCtor(AggTypeDecl* decl, DeclVisibility ctorVisibility);
 };
 
 bool isUnsizedArrayType(Type* type);
@@ -3041,4 +3092,17 @@ bool resolveStageOfProfileWithEntryPoint(
     const List<RefPtr<TargetRequest>>& targets,
     FuncDecl* entryPointFuncDecl,
     DiagnosticSink* sink);
+
+// For an extensions decl, collect a list of decls on which the extension might be applying to.
+// For example, if we see a `extension Foo`, return a `Decl*` that represents `struct Foo`.
+// In the case of free-form generic extensions i.e. `extension<T:IFoo> T : IBar`, return `IFoo`.
+// These are the decls that we need to register the extension with in
+// `mapTypeToCandidateExtensions`.
+// Returns true when any base decls are found.
+bool getExtensionTargetDeclList(
+    ASTBuilder* astBuilder,
+    DeclRefType* targetDeclRefType,
+    ExtensionDecl* extDeclRef,
+    ShortList<AggTypeDecl*>& targetDecls);
+
 } // namespace Slang

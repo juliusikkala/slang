@@ -126,8 +126,8 @@ INST(Nop, nop, 0, 0)
             INST(OutType, Out, 1, HOISTABLE)
             INST(InOutType, InOut, 1, HOISTABLE)
         INST_RANGE(OutTypeBase, OutType, InOutType)
-        INST(HLSLConstBufferPointerType, ConstBufferPointerType, 2, HOISTABLE)
     INST_RANGE(PtrTypeBase, PtrType, InOutType)
+
 
     // A ComPtr<T> type is treated as a opaque type that represents a reference-counted handle to a COM object.
     INST(ComPtrType, ComPtr, 1, HOISTABLE)
@@ -234,6 +234,7 @@ INST(Nop, nop, 0, 0)
 
 INST(RayQueryType, RayQuery, 1, HOISTABLE)
 INST(HitObjectType, HitObject, 0, HOISTABLE)
+INST(CoopVectorType, CoopVectorType, 2, HOISTABLE)
 
 // Opaque type that can be dynamically cast to other resource types.
 INST(DynamicResourceType, DynamicResource, 0, HOISTABLE)
@@ -363,6 +364,8 @@ INST(MatrixReshape, matrixReshape, 1, 0)
 INST(VectorReshape, vectorReshape, 1, 0)
 INST(MakeArray, makeArray, 0, 0)
 INST(MakeArrayFromElement, makeArrayFromElement, 1, 0)
+INST(MakeCoopVector, makeCoopVector, 0, 0)
+INST(MakeCoopVectorFromValuePack, makeCoopVectorFromValuePack, 1, 0)
 INST(MakeStruct, makeStruct, 0, 0)
 INST(MakeTuple, makeTuple, 0, 0)
 INST(MakeTargetTuple, makeTuple, 0, 0)
@@ -404,8 +407,11 @@ INST(WitnessTableEntry, witness_table_entry, 2, 0)
 INST(InterfaceRequirementEntry, interface_req_entry, 2, GLOBAL)
 
 // An inst to represent the workgroup size of the calling entry point.
-// We will materialize this inst during `translateGLSLGlobalVar`.
+// We will materialize this inst during `translateGlobalVaryingVar`.
 INST(GetWorkGroupSize, GetWorkGroupSize, 0, HOISTABLE)
+
+// An inst that returns the current stage of the calling entry point.
+INST(GetCurrentStage, GetCurrentStage, 0, 0)
 
 INST(Param, param, 0, 0)
 INST(StructField, field, 2, 0)
@@ -555,6 +561,8 @@ INST(MetalSetVertex, metalSetVertex, 2, 0)
 INST(MetalSetPrimitive, metalSetPrimitive, 2, 0)
 INST(MetalSetIndices, metalSetIndices, 2, 0)
 
+INST(MetalCastToDepthTexture, MetalCastToDepthTexture, 1, 0)
+
 // Construct a vector from a scalar
 //
 // %dst = MakeVectorFromScalar %T %N %val
@@ -658,10 +666,14 @@ INST_RANGE(TerminatorInst, Return, Unreachable)
 INST(discard, discard, 0, 0)
 
 INST(RequirePrelude, RequirePrelude, 1, 0)
-INST(RequireGLSLExtension, RequireGLSLExtension, 1, 0)
+INST(RequireTargetExtension, RequireTargetExtension, 1, 0)
 INST(RequireComputeDerivative, RequireComputeDerivative, 0, 0)
 INST(StaticAssert, StaticAssert, 2, 0)
 INST(Printf, Printf, 1, 0)
+
+// Quad control execution modes.
+INST(RequireMaximallyReconverges, RequireMaximallyReconverges, 0, 0)
+INST(RequireQuadDerivatives, RequireQuadDerivatives, 0, 0)
 
 // TODO: We should consider splitting the basic arithmetic/comparison
 // ops into cases for signed integers, unsigned integers, and floating-point
@@ -703,6 +715,8 @@ INST(Not, not, 1, 0)
 INST(BitNot, bitnot, 1, 0)
 
 INST(Select, select, 3, 0)
+
+INST(CheckpointObject, checkpointObj, 1, 0)
 
 INST(GetStringHash, getStringHash, 1, 0)
 
@@ -747,6 +761,9 @@ INST(GetPerVertexInputArray, GetPerVertexInputArray, 1, HOISTABLE)
 INST(ResolveVaryingInputRef, ResolveVaryingInputRef, 1, HOISTABLE)
 
 INST(ForceVarIntoStructTemporarily, ForceVarIntoStructTemporarily, 1, 0)
+INST(ForceVarIntoRayPayloadStructTemporarily, ForceVarIntoRayPayloadStructTemporarily, 1, 0)
+INST_RANGE(ForceVarIntoStructTemporarily, ForceVarIntoStructTemporarily, ForceVarIntoRayPayloadStructTemporarily)
+
 INST(MetalAtomicCast, MetalAtomicCast, 1, 0)
 
 INST(IsTextureAccess, IsTextureAccess, 1, 0)
@@ -795,6 +812,11 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
     INST(InterpolationModeDecoration,       interpolationMode,      1, 0)
     INST(NameHintDecoration,                nameHint,               1, 0)
 
+    INST(PhysicalTypeDecoration,            PhysicalType,           1, 0)
+
+    // Mark an address instruction as aligned to a specific byte boundary.
+    INST(AlignedAddressDecoration,          AlignedAddressDecoration, 1, 0)
+
     // Marks a type as being used as binary interface (e.g. shader parameters).
     // This prevents the legalizeEmptyType() pass from eliminating it on C++/CUDA targets.
     INST(BinaryInterfaceTypeDecoration,     BinaryInterfaceType, 0, 0)
@@ -819,6 +841,7 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
     INST(RequireSPIRVVersionDecoration,     requireSPIRVVersion,    1, 0)
     INST(RequireGLSLVersionDecoration,      requireGLSLVersion,     1, 0)
     INST(RequireGLSLExtensionDecoration,    requireGLSLExtension,   1, 0)
+    INST(RequireWGSLExtensionDecoration,    requireWGSLExtension,   1, 0)
     INST(RequireCUDASMVersionDecoration,    requireCUDASMVersion,   1, 0)
     INST(RequireCapabilityAtomDecoration,   requireCapabilityAtom, 1, 0)
 
@@ -835,8 +858,9 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
     INST(DownstreamModuleExportDecoration,  downstreamModuleExport, 0, 0)
     INST(DownstreamModuleImportDecoration,  downstreamModuleImport, 0, 0)
     INST(PatchConstantFuncDecoration,       patchConstantFunc,      1, 0)
+    INST(MaxTessFactorDecoration,           maxTessFactor,          1, 0)
     INST(OutputControlPointsDecoration,     outputControlPoints,    1, 0)
-    INST(OutputTopologyDecoration,          outputTopology,         1, 0)
+    INST(OutputTopologyDecoration,          outputTopology,         2, 0)
     INST(PartitioningDecoration,            partioning,             1, 0)
     INST(DomainDecoration,                  domain,                 1, 0)
     INST(MaxVertexCountDecoration,          maxVertexCount,         1, 0)
@@ -907,6 +931,9 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
         INST(ExportDecoration, export, 1, 0)
     INST_RANGE(LinkageDecoration, ImportDecoration, ExportDecoration)
 
+        /// Mark a global variable as a target builtin variable.
+    INST(TargetBuiltinVarDecoration, TargetBuiltinVar, 1, 0)
+
         /// Marks an inst as coming from an `extern` symbol defined in the user code.
     INST(UserExternDecoration, UserExtern, 0, 0)
 
@@ -960,6 +987,10 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
     INST(DerivativeGroupQuadDecoration, DerivativeGroupQuad, 0, 0)
     INST(DerivativeGroupLinearDecoration, DerivativeGroupLinear, 0, 0)
 
+    INST(MaximallyReconvergesDecoration, MaximallyReconverges, 0, 0)
+    INST(QuadDerivativesDecoration, QuadDerivatives, 0, 0)
+    INST(RequireFullQuadsDecoration, RequireFullQuads, 0, 0)
+
         // Marks a type to be non copyable, causing SSA pass to skip turning variables of the the type into SSA values.
     INST(NonCopyableTypeDecoration, nonCopyable, 0, 0)
 
@@ -974,6 +1005,7 @@ INST_RANGE(BindingQuery, GetRegisterIndex, GetRegisterSpace)
     INST(GLSLLocationDecoration, glslLocation, 1, 0)
     INST(GLSLOffsetDecoration, glslOffset, 1, 0)
     INST(PayloadDecoration, payload, 0, 0)
+    INST(RayPayloadDecoration, raypayload, 0, 0)
 
     /* Mesh Shader outputs */
         INST(VerticesDecoration, vertices, 1, 0)
@@ -1180,6 +1212,7 @@ INST(ExtractExistentialWitnessTable,    extractExistentialWitnessTable, 1, HOIST
 INST(ExtractTaggedUnionTag,             extractTaggedUnionTag,      1, 0)
 INST(ExtractTaggedUnionPayload,         extractTaggedUnionPayload,  1, 0)
 
+INST(BuiltinCast,                       BuiltinCast,                1, 0)
 INST(BitCast,                           bitCast,                    1, 0)
 INST(Reinterpret,                       reinterpret,                1, 0)
 INST(Unmodified,                        unmodified,                1, 0)
@@ -1239,6 +1272,11 @@ INST(CudaKernelLaunch, CudaKernelLaunch, 6, 0)
 
 // Converts other resources (such as ByteAddressBuffer) to the equivalent StructuredBuffer
 INST(GetEquivalentStructuredBuffer,     getEquivalentStructuredBuffer, 1, 0)
+
+// Gets a T[] pointer to the underlying data of a StructuredBuffer etc...
+INST(GetStructuredBufferPtr,     getStructuredBufferPtr, 1, 0)
+// Gets a uint[] pointer to the underlying data of a ByteAddressBuffer etc...
+INST(GetUntypedBufferPtr,     getUntypedBufferPtr, 1, 0)
 
 /* Layout */
     INST(VarLayout, varLayout, 1, HOISTABLE)

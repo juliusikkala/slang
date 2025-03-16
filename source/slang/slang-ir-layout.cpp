@@ -128,9 +128,6 @@ static Result _calcSizeAndAlignment(
         BASE(UIntPtr, kPointerSize);
         BASE(Double, 8);
 
-        BASE(Int8x4Packed, 4);
-        BASE(UInt8x4Packed, 4);
-
         // We are currently handling `bool` following the HLSL
         // precednet of storing it in 4 bytes.
         //
@@ -189,8 +186,8 @@ static Result _calcSizeAndAlignment(
                         builder.getIntValue(intType, (IRIntegerValue)rules->ruleName),
                         builder.getIntValue(intType, fieldOffset));
                 }
-
-                structLayout.size += fieldTypeLayout.size;
+                if (!seenFinalUnsizedArrayField)
+                    structLayout.size += fieldTypeLayout.size;
                 offset = structLayout.size;
                 if (as<IRMatrixType>(field->getFieldType()) ||
                     as<IRArrayTypeBase>(field->getFieldType()) ||
@@ -343,7 +340,7 @@ static Result _calcSizeAndAlignment(
     case kIROp_NativePtrType:
     case kIROp_ComPtrType:
     case kIROp_NativeStringType:
-    case kIROp_HLSLConstBufferPointerType:
+    case kIROp_RaytracingAccelerationStructureType:
         {
             *outSizeAndAlignment = IRSizeAndAlignment(kPointerSize, kPointerSize);
             return SLANG_OK;

@@ -328,6 +328,22 @@ static void emitUserAttributes(PrettyWriter& writer, slang::VariableReflection* 
         writer << "]";
     }
 }
+static void emitUserAttributes(PrettyWriter& writer, slang::FunctionReflection* func)
+{
+    auto attribCount = func->getUserAttributeCount();
+    if (attribCount)
+    {
+        writer << ",\n\"userAttribs\": [";
+        for (unsigned int i = 0; i < attribCount; i++)
+        {
+            if (i > 0)
+                writer << ",\n";
+            auto attrib = func->getUserAttributeByIndex(i);
+            emitUserAttributeJSON(writer, attrib);
+        }
+        writer << "]";
+    }
+}
 
 static void emitReflectionVarLayoutJSON(PrettyWriter& writer, slang::VariableLayoutReflection* var)
 {
@@ -498,6 +514,10 @@ static void emitReflectionTypeInfoJSON(PrettyWriter& writer, slang::TypeReflecti
                 break;
 
             case SLANG_STRUCTURED_BUFFER:
+            case SLANG_TEXTURE_1D:
+            case SLANG_TEXTURE_2D:
+            case SLANG_TEXTURE_3D:
+            case SLANG_TEXTURE_CUBE:
                 if (auto resultType = type->getResourceResultType())
                 {
                     writer.maybeComma();
@@ -1090,6 +1110,8 @@ static void emitReflectionEntryPointJSON(
         writer.dedent();
         writer << "\n]";
     }
+
+    emitUserAttributes(writer, entryPoint->getFunction());
 
     writer.dedent();
     writer << "\n}";

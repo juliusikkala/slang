@@ -2,7 +2,6 @@
 #include "slang-ir-spirv-legalize.h"
 
 #include "slang-emit-base.h"
-#include "slang-glsl-extension-tracker.h"
 #include "slang-ir-call-graph.h"
 #include "slang-ir-clone.h"
 #include "slang-ir-composite-reg-to-mem.h"
@@ -10,6 +9,7 @@
 #include "slang-ir-dominators.h"
 #include "slang-ir-float-non-uniform-resource-index.h"
 #include "slang-ir-glsl-legalize.h"
+#include "slang-ir-inline.h"
 #include "slang-ir-insts.h"
 #include "slang-ir-layout.h"
 #include "slang-ir-legalize-global-values.h"
@@ -22,6 +22,7 @@
 #include "slang-ir-simplify-cfg.h"
 #include "slang-ir-specialize-address-space.h"
 #include "slang-ir-util.h"
+#include "slang-ir-validate.h"
 #include "slang-ir.h"
 #include "slang-legalize-types.h"
 
@@ -132,6 +133,7 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             inst->getElementType(),
             builder.getIntValue(builder.getIntType(), elementSize.getStride()));
         const auto structType = builder.createStructType();
+        builder.addPhysicalTypeDecoration(structType);
         const auto arrayKey = builder.createStructKey();
         builder.createStructField(structType, arrayKey, arrayType);
         IRSizeAndAlignment structSize;
@@ -213,6 +215,7 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         IRBuilder builder(cbParamInst);
         builder.setInsertBefore(cbParamInst);
         auto structType = builder.createStructType();
+        builder.addPhysicalTypeDecoration(structType);
         addToWorkList(structType);
         StringBuilder sb;
         sb << "cbuffer_";
@@ -422,20 +425,10 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             }
 
             AddressSpace addressSpace = AddressSpace::ThreadLocal;
-            // Figure out storage class based on var layout.
-            if (auto layout = getVarLayout(inst))
-            {
-                auto cls = getGlobalParamAddressSpace(layout);
-                if (cls != AddressSpace::Generic)
-                    addressSpace = cls;
-                else if (auto systemValueAttr = layout->findAttr<IRSystemValueSemanticAttr>())
-                {
-                    String semanticName = systemValueAttr->getName();
-                    semanticName = semanticName.toLower();
-                    if (semanticName == "sv_pointsize")
-                        addressSpace = AddressSpace::BuiltinInput;
-                }
-            }
+            // Figure out storage class based on builtin info or var layout.
+            auto cls = getGlobalParamAddressSpace(inst);
+            if (cls != AddressSpace::Generic)
+                addressSpace = cls;
 
             // Don't do any processing for specialization constants.
             if (addressSpace == AddressSpace::SpecializationConstant)
@@ -635,8 +628,22 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         return addressSpace;
     }
 
-    AddressSpace getGlobalParamAddressSpace(IRVarLayout* varLayout)
+    AddressSpace getGlobalParamAddressSpace(IRInst* varInst)
     {
+        if (auto builtinDecor = varInst->findDecoration<IRTargetBuiltinVarDecoration>())
+        {
+            switch (builtinDecor->getBuiltinVarName())
+            {
+            case IRTargetBuiltinVarName::SpvInstanceIndex:
+            case IRTargetBuiltinVarName::SpvBaseInstance:
+                return AddressSpace::BuiltinInput;
+            }
+        }
+
+        auto varLayout = getVarLayout(varInst);
+        if (!varLayout)
+            return AddressSpace::Generic;
+
         auto typeLayout = varLayout->getTypeLayout()->unwrapArray();
         if (auto parameterGroupTypeLayout = as<IRParameterGroupTypeLayout>(typeLayout))
         {
@@ -663,15 +670,25 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
                                      "resolve a storage class address space.");
             }
         }
+        auto systemValueAttr = varLayout->findSystemValueSemanticAttr();
+
+        if (systemValueAttr)
+        {
+            // TODO: is this needed?
+            String semanticName = systemValueAttr->getName();
+            semanticName = semanticName.toLower();
+            if (semanticName == "sv_pointsize")
+                result = AddressSpace::BuiltinInput;
+        }
 
         switch (result)
         {
         case AddressSpace::Input:
-            if (varLayout->findSystemValueSemanticAttr())
+            if (systemValueAttr)
                 result = AddressSpace::BuiltinInput;
             break;
         case AddressSpace::Output:
-            if (varLayout->findSystemValueSemanticAttr())
+            if (systemValueAttr)
                 result = AddressSpace::BuiltinOutput;
             break;
         }
@@ -781,9 +798,9 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         {
             addressSpace = AddressSpace::GroupShared;
         }
-        else if (const auto varLayout = getVarLayout(inst))
+        else
         {
-            auto cls = getGlobalParamAddressSpace(varLayout);
+            auto cls = getGlobalParamAddressSpace(inst);
             if (cls != AddressSpace::Generic)
                 addressSpace = cls;
         }
@@ -1836,6 +1853,120 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         }
     };
 
+    void propagateAddressAlignment()
+    {
+        // Work list of load/store insts to add Aligned attribute to.
+        List<IRInst*> loadStoreInsts;
+
+        for (auto globalInst : m_module->getGlobalInsts())
+        {
+            auto func = as<IRFunc>(globalInst);
+            if (!func)
+                continue;
+            for (auto block : func->getBlocks())
+            {
+                for (auto inst : block->getChildren())
+                {
+                    switch (inst->getOp())
+                    {
+                    case kIROp_GetElementPtr:
+                    case kIROp_FieldAddress:
+                        {
+                            auto base = inst->getOperand(0);
+                            auto ptrType = as<IRPtrTypeBase>(base->getDataType());
+                            if (!ptrType)
+                                break;
+                            // Propagate address alignment if possible.
+                            auto alignDecor = base->findDecoration<IRAlignedAddressDecoration>();
+                            if (!alignDecor)
+                                break;
+                            auto valueType = ptrType->getValueType();
+                            auto layout = valueType->findDecoration<IRSizeAndAlignmentDecoration>();
+                            if (!layout)
+                                break;
+                            auto alignment = getIntVal(alignDecor->getAlignment());
+                            if (inst->getOp() == kIROp_GetElementPtr)
+                            {
+                                if (alignment >= layout->getAlignment())
+                                {
+                                    IRBuilder builder(inst);
+                                    builder.addAlignedAddressDecoration(
+                                        inst,
+                                        alignDecor->getAlignment());
+                                }
+                            }
+                            else
+                            {
+                                IRTypeLayoutRuleName layoutRuleName = layout->getLayoutName();
+                                auto field = findStructField(
+                                    valueType,
+                                    (IRStructKey*)as<IRFieldAddress>(inst)->getField());
+                                if (!field)
+                                    break;
+                                IRIntegerValue offset = 0;
+                                if (getOffset(
+                                        m_sharedContext->m_targetProgram->getOptionSet(),
+                                        IRTypeLayoutRules::get(layoutRuleName),
+                                        field,
+                                        &offset) != SLANG_OK)
+                                    break;
+                                if (offset % alignment == 0)
+                                {
+                                    IRBuilder builder(inst);
+                                    builder.addAlignedAddressDecoration(
+                                        inst,
+                                        alignDecor->getAlignment());
+                                }
+                            }
+                        }
+                        break;
+                    case kIROp_Load:
+                    case kIROp_Store:
+                        {
+                            if (inst->findAttr<IRAlignedAttr>())
+                                break;
+                            loadStoreInsts.add(inst);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Process the work list.
+        // If load/store doesn't have Aligned attribute, and the ptr has
+        // a IRAlignedAddress decoration, we should create a load/store
+        // with a Aligned attribute.
+        for (auto inst : loadStoreInsts)
+        {
+
+            if (auto load = as<IRLoad>(inst))
+            {
+                auto ptr = load->getPtr();
+                if (auto decor = ptr->findDecoration<IRAlignedAddressDecoration>())
+                {
+                    IRBuilder builder(inst);
+                    builder.setInsertBefore(inst);
+                    auto newLoad =
+                        builder.emitLoad(load->getFullType(), ptr, decor->getAlignment());
+                    load->replaceUsesWith(newLoad);
+                    load->removeAndDeallocate();
+                }
+            }
+            else if (auto store = as<IRStore>(inst))
+            {
+                auto ptr = store->getPtr();
+                if (auto decor = ptr->findDecoration<IRAlignedAddressDecoration>())
+                {
+                    IRBuilder builder(inst);
+                    builder.setInsertBefore(inst);
+                    builder.emitStore(ptr, store->getVal(), decor->getAlignment());
+                    store->removeAndDeallocate();
+                }
+            }
+        }
+    }
+
     void processModule()
     {
         determineSpirvVersion();
@@ -1900,8 +2031,8 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
                     legalizeSPIRVEntryPoint(func, entryPointDecor);
                 }
                 // SPIRV requires a dominator block to appear before dominated blocks.
-                // After legalizing the control flow, we need to sort our blocks to ensure this is
-                // true.
+                // After legalizing the control flow, we need to sort our blocks to ensure this
+                // is true.
                 sortBlocksInFunc(func);
             }
         }
@@ -1925,12 +2056,25 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             m_module,
             bufferElementTypeLoweringOptions);
 
-        // The above step may produce empty struct types, so we need to lower them out of existence.
+        // Inline all pack/unpack storage type functions generated during buffer element
+        // lowering pass.
+        performForceInlining(m_module);
+
+        // The above step may produce empty struct types, so we need to lower them out of
+        // existence.
         legalizeEmptyTypes(m_sharedContext->m_targetProgram, m_module, m_sink);
+
+        // Propagate alignment hints on address instructions.
+        propagateAddressAlignment();
 
         // Specalize address space for all pointers.
         SpirvAddressSpaceAssigner addressSpaceAssigner;
         specializeAddressSpace(m_module, &addressSpaceAssigner);
+
+        // For SPIR-V, we don't skip this validation, because we might then be generating
+        // invalid SPIR-V.
+        bool skipFuncParamValidation = false;
+        validateAtomicOperations(skipFuncParamValidation, m_sink, m_module->getModuleInst());
     }
 
     void updateFunctionTypes()

@@ -1,5 +1,6 @@
 #include "slang-emit-wgsl.h"
 
+#include "slang-ir-layout.h"
 #include "slang-ir-util.h"
 
 // A note on row/column "terminology reversal".
@@ -48,6 +49,14 @@ fn _slang_getNan() -> f32
     return a / b;
 }
 )";
+
+WGSLSourceEmitter::WGSLSourceEmitter(const Desc& desc)
+    : CLikeSourceEmitter(desc)
+{
+    m_extensionTracker =
+        dynamicCast<ShaderExtensionTracker>(desc.codeGenContext->getExtensionTracker());
+    SLANG_ASSERT(m_extensionTracker);
+}
 
 void WGSLSourceEmitter::emitSwitchCaseSelectorsImpl(
     const SwitchRegion::Case* const currentCase,
@@ -326,7 +335,7 @@ void WGSLSourceEmitter::emit(const AddressSpace addressSpace)
     }
 }
 
-static const char* getWgslImageFormat(IRTextureTypeBase* type)
+const char* WGSLSourceEmitter::getWgslImageFormat(IRTextureTypeBase* type)
 {
     // You can find the supported WGSL texel format from the URL:
     // https://www.w3.org/TR/WGSL/#storage-texel-formats
@@ -405,11 +414,19 @@ static const char* getWgslImageFormat(IRTextureTypeBase* type)
         return "rgba32sint";
     case ImageFormat::rgba32f:
         return "rgba32float";
+    case ImageFormat::bgra8:
+        return "bgra8unorm";
     case ImageFormat::unknown:
         // Unlike SPIR-V, WGSL doesn't have a texel format for "unknown".
         return "rgba32float";
     default:
-        // We may need to print a warning for types WGSL doesn't support
+        const auto imageFormatInfo = getImageFormatInfo(imageFormat);
+        getSink()->diagnose(
+            SourceLoc(),
+            Diagnostics::imageFormatUnsupportedByBackend,
+            imageFormatInfo.name,
+            "WGSL",
+            "rgba32float");
         return "rgba32float";
     }
 }
@@ -494,10 +511,6 @@ void WGSLSourceEmitter::emitSimpleTypeImpl(IRType* type)
         return;
     case kIROp_UIntPtrType:
         m_writer->emit("u64");
-        return;
-    case kIROp_Int8x4PackedType:
-    case kIROp_UInt8x4PackedType:
-        m_writer->emit("u32");
         return;
     case kIROp_StructType:
         m_writer->emit(getName(type));
@@ -951,8 +964,6 @@ void WGSLSourceEmitter::emitSimpleValueImpl(IRInst* inst)
                         return;
                     }
                 case BaseType::UInt:
-                case BaseType::Int8x4Packed:
-                case BaseType::UInt8x4Packed:
                     {
                         m_writer->emit("u32(");
                         m_writer->emit(UInt(uint32_t(litInst->value.intVal)));
@@ -1230,6 +1241,35 @@ bool WGSLSourceEmitter::tryEmitInstStmtImpl(IRInst* inst)
             m_writer->emit("(1));\n");
             return true;
         }
+    case kIROp_StructuredBufferGetDimensions:
+        {
+            IRIntegerValue strideValue;
+            auto dataType = inst->getOperand(0)->getDataType();
+            auto structuredBufferType = as<IRHLSLStructuredBufferTypeBase>(dataType);
+            if (structuredBufferType)
+            {
+                auto elementType = structuredBufferType->getElementType();
+                auto sizeDecor = elementType->findDecoration<IRSizeAndAlignmentDecoration>();
+                SLANG_ASSERT(sizeDecor);
+                strideValue = align(sizeDecor->getSize(), (int)sizeDecor->getAlignment());
+            }
+            else
+            {
+                SLANG_ASSERT(as<IRByteAddressBufferTypeBase>(dataType));
+                // ByteAddressBuffer(s) are an array of 32 bit integers, stride is 4 bytes.
+                strideValue = 4;
+            }
+
+            emitInstResultDecl(inst);
+            m_writer->emit("vec2<u32>(");
+            m_writer->emit("arrayLength(&");
+            emitOperand(inst->getOperand(0), getInfo(EmitOp::General));
+            m_writer->emit(")");
+            m_writer->emit(", ");
+            m_writer->emit(strideValue);
+            m_writer->emit(");\n");
+            return true;
+        }
     }
 }
 
@@ -1295,6 +1335,40 @@ bool WGSLSourceEmitter::tryEmitInstExprImpl(IRInst* inst, const EmitOpInfo& inOu
             return true;
         }
         break;
+
+    case kIROp_And:
+    case kIROp_Or:
+        {
+            // WGSL doesn't have operator overloadings for `&&` and `||` when the operands are
+            // non-scalar. Unlike HLSL, WGSL doesn't have `and()` and `or()`.
+            auto vecType = as<IRVectorType>(inst->getDataType());
+            if (!vecType)
+                return false;
+
+            // The function signature for `select` in WGSL is different from others:
+            // @const @must_use fn select(f: T, t: T, cond: bool) -> T
+            if (inst->getOp() == kIROp_And)
+            {
+                m_writer->emit("select(vec");
+                m_writer->emit(getIntVal(vecType->getElementCount()));
+                m_writer->emit("<bool>(false), ");
+                emitOperand(inst->getOperand(1), getInfo(EmitOp::General));
+                m_writer->emit(", ");
+                emitOperand(inst->getOperand(0), getInfo(EmitOp::General));
+                m_writer->emit(")");
+            }
+            else
+            {
+                m_writer->emit("select(");
+                emitOperand(inst->getOperand(1), getInfo(EmitOp::General));
+                m_writer->emit(", vec");
+                m_writer->emit(getIntVal(vecType->getElementCount()));
+                m_writer->emit("<bool>(true), ");
+                emitOperand(inst->getOperand(0), getInfo(EmitOp::General));
+                m_writer->emit(")");
+            }
+            return true;
+        }
 
     case kIROp_BitCast:
         {
@@ -1548,6 +1622,10 @@ void WGSLSourceEmitter::emitFrontMatterImpl(TargetRequest* /* targetReq */)
         m_writer->emit("enable f16;\n");
         m_writer->emit("\n");
     }
+
+    StringBuilder builder;
+    m_extensionTracker->appendExtensionRequireLinesForWGSL(builder);
+    m_writer->emit(builder.getUnownedSlice());
 }
 
 void WGSLSourceEmitter::emitIntrinsicCallExprImpl(
@@ -1616,6 +1694,35 @@ void WGSLSourceEmitter::emitInterpolationModifiersImpl(
     // "User-defined vertex outputs and fragment inputs of scalar or vector
     //  integer type must always be specified with interpolation type flat."
     // https://www.w3.org/TR/WGSL/#interpolation
+}
+
+void WGSLSourceEmitter::_requireExtension(const UnownedStringSlice& name)
+{
+    m_extensionTracker->requireExtension(name);
+}
+
+void WGSLSourceEmitter::handleRequiredCapabilitiesImpl(IRInst* inst)
+{
+    for (auto decoration : inst->getDecorations())
+    {
+        if (const auto extensionDecoration = as<IRRequireWGSLExtensionDecoration>(decoration))
+        {
+            _requireExtension(extensionDecoration->getExtensionName());
+
+            // TODO: Make this cleaner and only enable this extension if f16 is actually used on the
+            // subgroup intrinsic. Check float type in meta file.
+            if (m_f16ExtensionEnabled && extensionDecoration->getExtensionName() == "subgroups")
+            {
+                String extName = "subgroups_f16";
+                _requireExtension(extName.getUnownedSlice());
+            }
+        }
+    }
+}
+
+void WGSLSourceEmitter::emitRequireExtension(IRRequireTargetExtension* inst)
+{
+    _requireExtension(inst->getExtensionName());
 }
 
 } // namespace Slang

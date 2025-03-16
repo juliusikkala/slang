@@ -243,7 +243,6 @@ public:
     Linkage* getLinkage() { return m_codeGenContext->getLinkage(); }
     ComponentType* getProgram() { return m_codeGenContext->getProgram(); }
     TargetProgram* getTargetProgram() { return m_codeGenContext->getTargetProgram(); }
-
     //
     // Types
     //
@@ -470,7 +469,6 @@ public:
     void emitFrontMatter(TargetRequest* targetReq) { emitFrontMatterImpl(targetReq); }
 
     void emitPreModule() { emitPreModuleImpl(); }
-    void emitPostModule() { emitPostModuleImpl(); }
     void emitModule(IRModule* module, DiagnosticSink* sink)
     {
         m_irModule = module;
@@ -520,6 +518,7 @@ public:
 protected:
     virtual void emitGlobalParamDefaultVal(IRGlobalParam* inst) { SLANG_UNUSED(inst); }
     virtual void emitPostDeclarationAttributesForType(IRInst* type) { SLANG_UNUSED(type); }
+    virtual String getTargetBuiltinVarName(IRInst* inst, IRTargetBuiltinVarName builtinName);
     virtual bool doesTargetSupportPtrTypes() { return false; }
     virtual bool isResourceTypeBindless(IRType* type)
     {
@@ -555,7 +554,6 @@ protected:
     /// For example on targets that don't have built in vector/matrix support, this is where
     /// the appropriate generated declarations occur.
     virtual void emitPreModuleImpl();
-    virtual void emitPostModuleImpl();
 
     virtual void emitSimpleTypeAndDeclaratorImpl(IRType* type, DeclaratorInfo* declarator);
     void emitSimpleTypeAndDeclarator(IRType* type, DeclaratorInfo* declarator)
@@ -680,6 +678,8 @@ protected:
     void _emitCallArgList(IRCall* call, int startingOperandIndex = 1);
     virtual void emitCallArg(IRInst* arg);
 
+    virtual void emitRequireExtension(IRRequireTargetExtension* inst) { SLANG_UNUSED(inst); }
+
     String _generateUniqueName(const UnownedStringSlice& slice);
 
     // Sort witnessTable entries according to the order defined in the witnessed interface type.
@@ -736,10 +736,6 @@ protected:
     Dictionary<IRInst*, String> m_mapInstToName;
 
     OrderedHashSet<IRStringLit*> m_requiredPreludes;
-    struct RequiredAfter
-    {
-        String requireComputeDerivatives;
-    } m_requiredAfter;
 
     Dictionary<const char*, IRStringLit*> m_builtinPreludes;
 };

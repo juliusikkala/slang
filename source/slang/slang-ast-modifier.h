@@ -218,6 +218,15 @@ class RequiredSPIRVVersionModifier : public Modifier
 };
 
 // A modifier to tag something as an intrinsic that requires
+// a certain WGSL extension to be enabled when used
+class RequiredWGSLExtensionModifier : public Modifier
+{
+    SLANG_AST_CLASS(RequiredWGSLExtensionModifier)
+
+    Token extensionNameToken;
+};
+
+// A modifier to tag something as an intrinsic that requires
 // a certain CUDA SM version to be enabled when used. Specified as "major.minor"
 class RequiredCUDASMVersionModifier : public Modifier
 {
@@ -1270,10 +1279,10 @@ class ImplicitConversionModifier : public Modifier
     SLANG_AST_CLASS(ImplicitConversionModifier)
 
     // The conversion cost, used to rank conversions
-    ConversionCost cost;
+    ConversionCost cost = kConversionCost_None;
 
     // A builtin identifier for identifying conversions that need special treatment.
-    BuiltinConversionKind builtinConversionKind;
+    BuiltinConversionKind builtinConversionKind = kBuiltinConversion_Unknown;
 };
 
 class FormatAttribute : public Attribute
@@ -1382,25 +1391,25 @@ class DifferentiableAttribute : public Attribute
 {
     SLANG_AST_CLASS(DifferentiableAttribute)
 
-    List<KeyValuePair<DeclRefBase*, SubtypeWitness*>> m_typeToIDifferentiableWitnessMappings;
+    List<KeyValuePair<Type*, SubtypeWitness*>> m_typeToIDifferentiableWitnessMappings;
 
-    void addType(DeclRefBase* declRef, SubtypeWitness* witness)
+    void addType(Type* declRef, SubtypeWitness* witness)
     {
         getMapTypeToIDifferentiableWitness();
         if (m_mapToIDifferentiableWitness.addIfNotExists(declRef, witness))
         {
             m_typeToIDifferentiableWitnessMappings.add(
-                KeyValuePair<DeclRefBase*, SubtypeWitness*>(declRef, witness));
+                KeyValuePair<Type*, SubtypeWitness*>(declRef, witness));
         }
     }
 
     /// Mapping from types to subtype witnesses for conformance to IDifferentiable.
-    const OrderedDictionary<DeclRefBase*, SubtypeWitness*>& getMapTypeToIDifferentiableWitness();
+    const OrderedDictionary<Type*, SubtypeWitness*>& getMapTypeToIDifferentiableWitness();
 
     SLANG_UNREFLECTED ValSet m_typeRegistrationWorkingSet;
 
 private:
-    OrderedDictionary<DeclRefBase*, SubtypeWitness*> m_mapToIDifferentiableWitness;
+    OrderedDictionary<Type*, SubtypeWitness*> m_mapToIDifferentiableWitness;
 };
 
 class DllImportAttribute : public Attribute
@@ -1662,6 +1671,21 @@ class DerivativeGroupQuadAttribute : public Attribute
 class DerivativeGroupLinearAttribute : public Attribute
 {
     SLANG_AST_CLASS(DerivativeGroupLinearAttribute)
+};
+
+class MaximallyReconvergesAttribute : public Attribute
+{
+    SLANG_AST_CLASS(MaximallyReconvergesAttribute)
+};
+
+class QuadDerivativesAttribute : public Attribute
+{
+    SLANG_AST_CLASS(QuadDerivativesAttribute)
+};
+
+class RequireFullQuadsAttribute : public Attribute
+{
+    SLANG_AST_CLASS(RequireFullQuadsAttribute)
 };
 
 /// A `[payload]` attribute indicates that a `struct` type will be used as

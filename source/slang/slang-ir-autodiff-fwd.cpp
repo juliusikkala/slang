@@ -1777,7 +1777,7 @@ void insertTempVarForMutableParams(IRModule* module, IRFunc* func)
 
     for (auto param : params)
     {
-        auto ptrType = as<IRPtrTypeBase>(param->getDataType());
+        auto ptrType = asRelevantPtrType(param->getDataType());
         auto tempVar = builder.emitVar(ptrType->getValueType());
         param->replaceUsesWith(tempVar);
         mapParamToTempVar[param] = tempVar;
@@ -2012,6 +2012,7 @@ InstPair ForwardDiffTranscriber::transcribeInstImpl(IRBuilder* builder, IRInst* 
     case kIROp_MakeArrayFromElement:
     case kIROp_MakeTuple:
     case kIROp_MakeValuePack:
+    case kIROp_BuiltinCast:
         return transcribeConstruct(builder, origInst);
     case kIROp_MakeStruct:
         return transcribeMakeStruct(builder, origInst);
@@ -2175,6 +2176,9 @@ InstPair ForwardDiffTranscriber::transcribeInstImpl(IRBuilder* builder, IRInst* 
     case kIROp_SizeOf:
     case kIROp_AlignOf:
     case kIROp_Printf:
+    case kIROp_MakeCoopVector:
+    case kIROp_MakeCoopVectorFromValuePack:
+    case kIROp_GetCurrentStage:
         return transcribeNonDiffInst(builder, origInst);
 
         // A call to createDynamicObject<T>(arbitraryData) cannot provide a diff value,
@@ -2241,7 +2245,7 @@ InstPair ForwardDiffTranscriber::transcribeFuncParam(
                 builder->emitDifferentialPairGetPrimal(diffPairParam),
                 builder->emitDifferentialPairGetDifferential(diffType, diffPairParam));
         }
-        else if (auto pairPtrType = as<IRPtrTypeBase>(diffPairType))
+        else if (auto pairPtrType = asRelevantPtrType(diffPairType))
         {
             auto ptrInnerPairType = as<IRDifferentialPairTypeBase>(pairPtrType->getValueType());
             // Make a local copy of the parameter for primal and diff parts.

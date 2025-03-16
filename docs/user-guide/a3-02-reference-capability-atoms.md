@@ -269,6 +269,14 @@ Versions
 > HLSL shader model 6.7 and related capabilities of other targets.
 > Includes related GLSL/SPIRV extensions.
 
+`sm_6_8_version`
+> HLSL shader model 6.8 and related capabilities of other targets.
+> Does not include related GLSL/SPIRV extensions.
+
+`sm_6_8`
+> HLSL shader model 6.8 and related capabilities of other targets.
+> Includes related GLSL/SPIRV extensions.
+
 `GLSL_130`
 > GLSL 130 and related capabilities of other targets.
 
@@ -363,6 +371,12 @@ Extensions
 `SPV_EXT_demote_to_helper_invocation`
 > Represents the SPIR-V extension for demoting to helper invocation.
 
+`SPV_KHR_maximal_reconvergence`
+> Represents the SPIR-V extension for maximal reconvergence.
+
+`SPV_KHR_quad_control`
+> Represents the SPIR-V extension for quad group control.
+
 `SPV_KHR_fragment_shader_barycentric`
 > Represents the SPIR-V extension for fragment shader barycentric.
 
@@ -400,6 +414,12 @@ Extensions
 
 `SPV_GOOGLE_user_type`
 > Represents the SPIR-V extension for SPV_GOOGLE_user_type.
+
+`SPV_EXT_replicated_composites`
+> Represents the SPIR-V extension for SPV_EXT_replicated_composites.
+
+`SPV_NV_cooperative_vector`
+> Represents the SPIR-V extension for SPV_NV_cooperative_vector.
 
 `spvAtomicFloat32AddEXT`
 > Represents the SPIR-V capability for atomic float 32 add operations.
@@ -503,6 +523,21 @@ Extensions
 `spvDemoteToHelperInvocation`
 > Represents the SPIR-V capability for demoting to helper invocation.
 
+`spvReplicatedCompositesEXT`
+> Represents the SPIR-V capability for replicated composites
+
+`spvCooperativeVectorNV`
+> Represents the SPIR-V capability for cooperative vectors
+
+`spvCooperativeVectorTrainingNV`
+> Represents the SPIR-V capability for cooperative vector training
+
+`spvMaximalReconvergenceKHR`
+> Represents the SPIR-V capability for maximal reconvergence.
+
+`spvQuadControlKHR`
+> Represents the SPIR-V capability for quad group control.
+
 `GL_EXT_buffer_reference`
 > Represents the GL_EXT_buffer_reference extension.
 
@@ -514,6 +549,12 @@ Extensions
 
 `GL_EXT_demote_to_helper_invocation`
 > Represents the GL_EXT_demote_to_helper_invocation extension.
+
+`GL_EXT_maximal_reconvergence`
+> Represents the GL_EXT_maximal_reconvergence extension.
+
+`GL_EXT_shader_quad_control`
+> Represents the GL_EXT_shader_quad_control extension.
 
 `GL_EXT_fragment_shader_barycentric`
 > Represents the GL_EXT_fragment_shader_barycentric extension.
@@ -747,6 +788,9 @@ Compound Capabilities
 `cuda_glsl_hlsl_spirv`
 > CUDA, GLSL, HLSL, and SPIRV code-gen targets
 
+`cuda_glsl_hlsl_spirv_wgsl`
+> CUDA, GLSL, HLSL, SPIRV, and WGSL code-gen targets
+
 `cuda_glsl_hlsl_metal_spirv`
 > CUDA, GLSL, HLSL, Metal, and SPIRV code-gen targets
 
@@ -788,6 +832,9 @@ Compound Capabilities
 
 `glsl_spirv`
 > GLSL, and SPIRV code-gen targets
+
+`glsl_spirv_wgsl`
+> GLSL, SPIRV, and WGSL code-gen targets
 
 `hlsl_spirv`
 > HLSL, and SPIRV code-gen targets
@@ -834,7 +881,7 @@ Compound Capabilities
 `shadermemorycontrol`
 > (gfx targets) Capabilities needed to use memory barriers
 
-`waveprefix`
+`wave_multi_prefix`
 > Capabilities needed to use HLSL tier wave operations
 
 `bufferreference`
@@ -842,6 +889,14 @@ Compound Capabilities
 
 `bufferreference_int64`
 > Capabilities needed to use GLSL buffer-reference's with int64
+
+`cooperative_vector`
+> Capabilities needed to use cooperative vectors
+> Note that cpp and cuda are supported via a fallback non-cooperative implementation
+> No HLSL shader model bound yet
+
+`cooperative_vector_training`
+> Capabilities needed to train cooperative vectors
 
 `any_stage`
 > Collection of all shader stages
@@ -1078,6 +1133,9 @@ Compound Capabilities
 `helper_lane`
 > Capabilities required to enable helper-lane demotion
 
+`quad_control`
+> Capabilities required to enable quad group control
+
 `breakpoint`
 > Capabilities required to enable shader breakpoints
 
@@ -1198,6 +1256,9 @@ Other
 
 `DX_6_7`
 > Use `sm_6_7` instead
+
+`DX_6_8`
+> Use `sm_6_8` instead
 
 `GLSL_410_SPIRV_1_0`
 > User should not use this capability

@@ -138,6 +138,19 @@ SpvInst* emitOpTypeVector(
         componentCount);
 }
 
+template<typename T1, typename T2>
+SpvInst* emitOpTypeCoopVec(IRInst* inst, const T1& componentType, const T2& componentCount)
+{
+    static_assert(isSingular<T1>);
+    return emitInstMemoized(
+        getSection(SpvLogicalSectionID::ConstantsAndTypes),
+        inst,
+        SpvOpTypeCooperativeVectorNV,
+        kResultID,
+        componentType,
+        componentCount);
+}
+
 // https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#OpTypeMatrix
 template<typename T>
 SpvInst* emitOpTypeMatrix(IRInst* inst, const T& columnType, const SpvLiteralInteger& columnCount)
@@ -1395,6 +1408,20 @@ SpvInst* emitOpBitcast(
     static_assert(isSingular<T2>);
     return emitInst(parent, inst, SpvOpBitcast, idResultType, kResultID, operand);
 }
+
+// https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#OpCopyLogical
+template<typename T1, typename T2>
+SpvInst* emitOpCopyLogical(
+    SpvInstParent* parent,
+    IRInst* inst,
+    const T1& idResultType,
+    const T2& operand)
+{
+    static_assert(isSingular<T1>);
+    static_assert(isSingular<T2>);
+    return emitInst(parent, inst, SpvOpCopyLogical, idResultType, kResultID, operand);
+}
+
 
 // https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#OpSNegate
 template<typename T1, typename T2>

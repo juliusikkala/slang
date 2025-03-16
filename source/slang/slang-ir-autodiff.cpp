@@ -135,7 +135,7 @@ bool isNoDiffType(IRType* paramType)
 
             paramType = attrType->getBaseType();
         }
-        else if (auto ptrType = as<IRPtrTypeBase>(paramType))
+        else if (auto ptrType = asRelevantPtrType(paramType))
         {
             paramType = ptrType->getValueType();
         }
@@ -184,7 +184,7 @@ IRInst* DifferentialPairTypeBuilder::emitFieldAccessor(
     IRStructKey* key)
 {
     IRInst* pairType = nullptr;
-    if (auto basePtrType = as<IRPtrTypeBase>(baseInst->getDataType()))
+    if (auto basePtrType = asRelevantPtrType(baseInst->getDataType()))
     {
         auto loweredType = lowerDiffPairType(builder, basePtrType->getValueType());
 
@@ -203,7 +203,7 @@ IRInst* DifferentialPairTypeBuilder::emitFieldAccessor(
             baseInst,
             key));
     }
-    else if (auto ptrType = as<IRPtrTypeBase>(pairType))
+    else if (auto ptrType = asRelevantPtrType(pairType))
     {
         if (auto ptrInnerSpecializedType = as<IRSpecialize>(ptrType->getValueType()))
         {
@@ -240,7 +240,7 @@ IRInst* DifferentialPairTypeBuilder::emitFieldAccessor(
                 baseInst,
                 key));
         }
-        else if (auto genericPtrType = as<IRPtrTypeBase>(genericType))
+        else if (auto genericPtrType = asRelevantPtrType(genericType))
         {
             if (auto genericPairStructType = as<IRStructType>(genericPtrType->getValueType()))
             {
@@ -1026,12 +1026,9 @@ IRInst* AutoDiffSharedContext::findDifferentiableInterface()
     {
         for (auto globalInst : module->getGlobalInsts())
         {
-            // TODO: This seems like a particularly dangerous way to look for an interface.
-            // See if we can lower IDifferentiable to a separate IR inst.
-            //
             if (auto intf = as<IRInterfaceType>(globalInst))
             {
-                if (auto decor = intf->findDecoration<IRNameHintDecoration>())
+                if (auto decor = intf->findDecoration<IRKnownBuiltinDecoration>())
                 {
                     if (decor->getName() == toSlice("IDifferentiable"))
                     {
@@ -1261,7 +1258,7 @@ void DifferentiableTypeConformanceContext::setFunc(IRGlobalValueWithCode* func)
             }
 
             addTypeToDictionary((IRType*)item->getBaseType(), item->getWitness());
-
+#if 0
             // TODO: Is this really needed?
             if (!as<IRInterfaceType>(item->getBaseType()) &&
                 !as<IRAssociatedType>(item->getBaseType()))
@@ -1314,6 +1311,7 @@ void DifferentiableTypeConformanceContext::setFunc(IRGlobalValueWithCode* func)
                     addTypeToDictionary((IRType*)diffType, diffWitness);
                 }
             }
+#endif
         }
     }
 }
@@ -1364,9 +1362,10 @@ IRInst* DifferentiableTypeConformanceContext::lookUpInterfaceMethod(
     IRBuilder* builder,
     IRType* origType,
     IRStructKey* key,
-    IRType* resultType)
+    IRType* resultType,
+    DiffConformanceKind kind)
 {
-    if (auto conformance = tryGetDifferentiableWitness(builder, origType, DiffConformanceKind::Any))
+    if (auto conformance = tryGetDifferentiableWitness(builder, origType, kind))
         return _lookupWitness(builder, conformance, key, resultType);
     return nullptr;
 }
@@ -1648,7 +1647,7 @@ IRType* DifferentiableTypeConformanceContext::differentiateType(
     IRBuilder* builder,
     IRInst* primalType)
 {
-    if (auto ptrType = as<IRPtrTypeBase>(primalType))
+    if (auto ptrType = asRelevantPtrType(primalType))
         return builder->getPtrType(
             primalType->getOp(),
             differentiateType(builder, ptrType->getValueType()));
@@ -2099,8 +2098,6 @@ IRInst* DifferentiableTypeConformanceContext::buildTupleWitness(
     IRWitnessTable* table = nullptr;
     if (target == DiffConformanceKind::Value)
     {
-        SLANG_ASSERT(isDifferentiableValueType((IRType*)inTupleType));
-
         auto addMethod = builder->createFunc();
         auto zeroMethod = builder->createFunc();
 
@@ -2140,6 +2137,8 @@ IRInst* DifferentiableTypeConformanceContext::buildTupleWitness(
                     &b,
                     (IRType*)elementType,
                     DiffConformanceKind::Value);
+
+                SLANG_ASSERT(isDifferentiableValueType((IRType*)elementType));
                 IRInst* elementResult = nullptr;
                 if (!innerWitness)
                 {
@@ -2173,9 +2172,9 @@ IRInst* DifferentiableTypeConformanceContext::buildTupleWitness(
         {
             // Zero method.
             IRBuilder b = *builder;
-            b.setInsertInto(addMethod);
-            b.addBackwardDifferentiableDecoration(addMethod);
-            addMethod->setFullType(b.getFuncType(0, nullptr, diffTupleType));
+            b.setInsertInto(zeroMethod);
+            b.addBackwardDifferentiableDecoration(zeroMethod);
+            zeroMethod->setFullType(b.getFuncType(0, nullptr, diffTupleType));
             b.emitBlock();
             List<IRInst*> results;
             for (UInt i = 0; i < inTupleType->getOperandCount(); i++)
@@ -2216,7 +2215,6 @@ IRInst* DifferentiableTypeConformanceContext::buildTupleWitness(
     else if (target == DiffConformanceKind::Ptr)
     {
         SLANG_ASSERT(isDifferentiablePtrType((IRType*)inTupleType));
-
         table = builder->createWitnessTable(
             sharedContext->differentiablePtrInterfaceType,
             (IRType*)inTupleType);
@@ -2471,6 +2469,7 @@ void stripAutoDiffDecorationsFromChildren(IRInst* parent)
             case kIROp_BackwardDerivativePrimalDecoration:
             case kIROp_BackwardDerivativePrimalContextDecoration:
             case kIROp_BackwardDerivativePrimalReturnDecoration:
+            case kIROp_PrimalSubstituteDecoration:
             case kIROp_AutoDiffOriginalValueDecoration:
             case kIROp_UserDefinedBackwardDerivativeDecoration:
             case kIROp_IntermediateContextFieldDifferentialTypeDecoration:
@@ -2619,6 +2618,7 @@ bool canTypeBeStored(IRInst* type)
     case kIROp_ClassType:
     case kIROp_FloatType:
     case kIROp_VectorType:
+    case kIROp_CoopVectorType:
     case kIROp_MatrixType:
     case kIROp_BackwardDiffIntermediateContextType:
         return true;

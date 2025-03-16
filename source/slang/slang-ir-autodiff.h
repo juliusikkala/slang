@@ -252,7 +252,8 @@ struct DifferentiableTypeConformanceContext
         IRBuilder* builder,
         IRType* origType,
         IRStructKey* key,
-        IRType* resultType = nullptr);
+        IRType* resultType = nullptr,
+        DiffConformanceKind kind = DiffConformanceKind::Any);
 
     IRType* differentiateType(IRBuilder* builder, IRInst* primalType);
 
@@ -411,7 +412,8 @@ struct DifferentiableTypeConformanceContext
             builder,
             origType,
             sharedContext->zeroMethodStructKey,
-            sharedContext->zeroMethodType);
+            sharedContext->zeroMethodType,
+            DiffConformanceKind::Value);
         return result;
     }
 
@@ -421,7 +423,8 @@ struct DifferentiableTypeConformanceContext
             builder,
             origType,
             sharedContext->addMethodStructKey,
-            sharedContext->addMethodType);
+            sharedContext->addMethodType,
+            DiffConformanceKind::Value);
         return result;
     }
 
@@ -604,7 +607,7 @@ inline bool isRelevantDifferentialPair(IRType* type)
     {
         return true;
     }
-    else if (auto argPtrType = as<IRPtrTypeBase>(type))
+    else if (auto argPtrType = asRelevantPtrType(type))
     {
         if (as<IRDifferentialPairType>(argPtrType->getValueType()))
         {

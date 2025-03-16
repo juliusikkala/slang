@@ -1574,8 +1574,8 @@ public:
     }
 
 protected:
-    LegalizeShaderEntryPointContext(IRModule* module, DiagnosticSink* sink, bool hoistParameters)
-        : m_module(module), m_sink(sink), hoistParameters(hoistParameters)
+    LegalizeShaderEntryPointContext(IRModule* module, DiagnosticSink* sink)
+        : m_module(module), m_sink(sink)
     {
     }
 
@@ -1758,7 +1758,6 @@ protected:
     }
 
 private:
-    const bool hoistParameters;
     HashSet<IRStructField*> semanticInfoToRemove;
 
     void removeSemanticLayoutsFromLegalizedStructs()
@@ -2985,16 +2984,9 @@ private:
         // If the entrypoint is receiving varying inputs as a pointer, turn it into a value.
         depointerizeInputParams(entryPoint.entryPointFunc);
 
-        // TODO FIXME: Enable these for WGSL and remove the `hoistParemeters` member field.
-        // WGSL entry point legalization currently only applies attributes to struct parameters,
-        // apply the same hoisting from Metal to WGSL to fix it.
-        if (hoistParameters)
-        {
-            hoistEntryPointParameterFromStruct(entryPoint);
-            packStageInParameters(entryPoint);
-        }
-
         // Input Parameter Legalize
+        hoistEntryPointParameterFromStruct(entryPoint);
+        packStageInParameters(entryPoint);
         flattenInputParameters(entryPoint);
 
         // System Value Legalize
@@ -3023,7 +3015,7 @@ class LegalizeMetalEntryPointContext : public LegalizeShaderEntryPointContext
 {
 public:
     LegalizeMetalEntryPointContext(IRModule* module, DiagnosticSink* sink)
-        : LegalizeShaderEntryPointContext(module, sink, true)
+        : LegalizeShaderEntryPointContext(module, sink)
     {
         generatePermittedTypes_sv_target();
     }
@@ -3234,6 +3226,20 @@ protected:
             {
                 result.systemValueName = toSlice("base_instance");
                 result.permittedTypes.add(builder.getBasicType(BaseType::UInt));
+                break;
+            }
+        case SystemValueSemanticName::WaveLaneCount:
+            {
+                result.systemValueName = toSlice("threads_per_simdgroup");
+                result.permittedTypes.add(builder.getUIntType());
+                result.permittedTypes.add(builder.getUInt16Type());
+                break;
+            }
+        case SystemValueSemanticName::WaveLaneIndex:
+            {
+                result.systemValueName = toSlice("thread_index_in_simdgroup");
+                result.permittedTypes.add(builder.getUIntType());
+                result.permittedTypes.add(builder.getUInt16Type());
                 break;
             }
         default:
@@ -3512,27 +3518,8 @@ protected:
             SLANG_UNEXPECTED("Mesh shader output decoration missing");
             return;
         }
-        const auto topology = outputDeco->getTopology();
-        const auto topStr = topology->getStringSlice();
-        UInt topologyEnum = 0;
-        if (topStr.caseInsensitiveEquals(toSlice("point")))
-        {
-            topologyEnum = 1;
-        }
-        else if (topStr.caseInsensitiveEquals(toSlice("line")))
-        {
-            topologyEnum = 2;
-        }
-        else if (topStr.caseInsensitiveEquals(toSlice("triangle")))
-        {
-            topologyEnum = 3;
-        }
-        else
-        {
-            SLANG_UNEXPECTED("unknown topology");
-            return;
-        }
 
+        const auto topologyEnum = outputDeco->getTopologyType();
         IRInst* topologyConst = builder.getIntValue(builder.getIntType(), topologyEnum);
 
         IRType* vertexType = nullptr;
@@ -3681,7 +3668,7 @@ class LegalizeWGSLEntryPointContext : public LegalizeShaderEntryPointContext
 {
 public:
     LegalizeWGSLEntryPointContext(IRModule* module, DiagnosticSink* sink)
-        : LegalizeShaderEntryPointContext(module, sink, false)
+        : LegalizeShaderEntryPointContext(module, sink)
     {
     }
 
@@ -3853,6 +3840,20 @@ protected:
                 break;
             }
 
+        case SystemValueSemanticName::WaveLaneCount:
+            {
+                result.systemValueName = toSlice("subgroup_size");
+                result.permittedTypes.add(builder.getUIntType());
+                break;
+            }
+
+        case SystemValueSemanticName::WaveLaneIndex:
+            {
+                result.systemValueName = toSlice("subgroup_invocation_id");
+                result.permittedTypes.add(builder.getUIntType());
+                break;
+            }
+
         case SystemValueSemanticName::ViewID:
         case SystemValueSemanticName::ViewportArrayIndex:
         case SystemValueSemanticName::StartVertexLocation:
@@ -3861,7 +3862,6 @@ protected:
                 result.isUnsupported = true;
                 break;
             }
-
         default:
             {
                 m_sink->diagnose(

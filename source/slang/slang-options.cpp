@@ -384,13 +384,6 @@ void initCommandOptions(CommandOptions& options)
          "-restrictive-capability-check",
          nullptr,
          "Many capability warnings will become an error."},
-        {OptionKind::ZeroInitialize,
-         "-zero-initialize",
-         nullptr,
-         "Initialize all variables to zero."
-         "Structs will set all struct-fields without an init expression to 0."
-         "All variables will call their default constructor if not explicitly initialized as "
-         "usual."},
         {OptionKind::IgnoreCapabilities,
          "-ignore-capabilities",
          nullptr,
@@ -888,6 +881,11 @@ void initCommandOptions(CommandOptions& options)
          "-save-core-module-bin-source <filename>",
          "Same as -save-core-module but output "
          "the data as a C array.\n"},
+        {OptionKind::SaveGLSLModuleBinSource,
+         "-save-glsl-module-bin-source",
+         "-save-glsl-module-bin-source <filename>",
+         "Save the serialized glsl module "
+         "as a C array.\n"},
         {OptionKind::TrackLiveness,
          "-track-liveness",
          nullptr,
@@ -909,6 +907,13 @@ void initCommandOptions(CommandOptions& options)
          "-parameter-blocks-use-register-spaces",
          nullptr,
          "Parameter blocks will use register spaces"},
+        {OptionKind::ZeroInitialize,
+         "-zero-initialize",
+         nullptr,
+         "Initialize all variables to zero."
+         "Structs will set all struct-fields without an init expression to 0."
+         "All variables will call their default constructor if not explicitly initialized as "
+         "usual."},
     };
     _addOptions(makeConstArrayView(deprecatedOpts), options);
 
@@ -1743,13 +1748,17 @@ SlangResult OptionsParser::_expectInt(const CommandLineArg& initArg, Int& outInt
     return SLANG_OK;
 }
 
-SlangResult OptionsParser::addReferencedModule(String path, SourceLoc loc, bool includeEntryPoint)
+SlangResult createArtifactFromReferencedModule(
+    String path,
+    SourceLoc loc,
+    DiagnosticSink* sink,
+    IArtifact** outArtifact)
 {
     auto desc = ArtifactDescUtil::getDescFromPath(path.getUnownedSlice());
 
     if (desc.kind == ArtifactKind::Unknown)
     {
-        m_sink->diagnose(loc, Diagnostics::unknownLibraryKind, Path::getPathExt(path));
+        sink->diagnose(loc, Diagnostics::unknownLibraryKind, Path::getPathExt(path));
         return SLANG_FAIL;
     }
 
@@ -1767,7 +1776,7 @@ SlangResult OptionsParser::addReferencedModule(String path, SourceLoc loc, bool 
 
     if (!ArtifactDescUtil::isLinkable(desc))
     {
-        m_sink->diagnose(loc, Diagnostics::kindNotLinkable, Path::getPathExt(path));
+        sink->diagnose(loc, Diagnostics::kindNotLinkable, Path::getPathExt(path));
         return SLANG_FAIL;
     }
 
@@ -1798,11 +1807,20 @@ SlangResult OptionsParser::addReferencedModule(String path, SourceLoc loc, bool 
             nullptr);
         if (!fileRep->exists())
         {
-            m_sink->diagnose(loc, Diagnostics::libraryDoesNotExist, path);
+            sink->diagnose(loc, Diagnostics::libraryDoesNotExist, path);
             return SLANG_FAIL;
         }
     }
     artifact->addRepresentation(fileRep);
+    *outArtifact = artifact.detach();
+    return SLANG_OK;
+}
+
+SlangResult OptionsParser::addReferencedModule(String path, SourceLoc loc, bool includeEntryPoint)
+{
+    ComPtr<IArtifact> artifact;
+    SLANG_RETURN_ON_FAIL(
+        createArtifactFromReferencedModule(path, loc, m_sink, artifact.writeRef()));
 
     SLANG_RETURN_ON_FAIL(_addLibraryReference(m_requestImpl, path, artifact, includeEntryPoint));
     for (Index i = m_rawTranslationUnits.getCount(); i < m_requestImpl->getTranslationUnitCount();
@@ -1826,7 +1844,20 @@ SlangResult OptionsParser::_parseReferenceModule(const CommandLineArg& arg)
     CommandLineArg referenceModuleName;
     SLANG_RETURN_ON_FAIL(m_reader.expectArg(referenceModuleName));
 
-    return addReferencedModule(referenceModuleName.value, referenceModuleName.loc, true);
+    // Add the module to the request
+    SLANG_RETURN_ON_FAIL(
+        addReferencedModule(referenceModuleName.value, referenceModuleName.loc, true));
+
+    // In addition to adding the module to the request, we also add to the options set, because
+    // the same options parser is also used for IGlobalSession::parseCommandLineArguments, which
+    // parses options via a dummy request that is destroyed once the command line options are
+    // obtained. Therefore, also add the option here so that
+    // IGlobalSession::parseCommandLineArguments can return them.
+    m_requestImpl->getLinkage()->m_optionSet.add(
+        CompilerOptionName::ReferenceModule,
+        referenceModuleName.value);
+
+    return SLANG_OK;
 }
 
 SlangResult OptionsParser::_parseReproFileSystem(const CommandLineArg& arg)
@@ -2133,7 +2164,6 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
         case OptionKind::VulkanUseEntryPointName:
         case OptionKind::VulkanUseGLLayout:
         case OptionKind::VulkanEmitReflection:
-        case OptionKind::ZeroInitialize:
         case OptionKind::IgnoreCapabilities:
         case OptionKind::RestrictiveCapabilityCheck:
         case OptionKind::MinimumSlangOptimization:
@@ -2203,14 +2233,24 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
                 break;
             }
         case OptionKind::SaveCoreModuleBinSource:
+        case OptionKind::SaveGLSLModuleBinSource:
             {
                 CommandLineArg fileName;
                 SLANG_RETURN_ON_FAIL(m_reader.expectArg(fileName));
 
                 ComPtr<ISlangBlob> blob;
 
-                SLANG_RETURN_ON_FAIL(m_session->saveCoreModule(m_archiveType, blob.writeRef()));
-
+                if (optionKind == OptionKind::SaveCoreModuleBinSource)
+                {
+                    SLANG_RETURN_ON_FAIL(m_session->saveCoreModule(m_archiveType, blob.writeRef()));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(m_session->saveBuiltinModule(
+                        slang::BuiltinModuleName::GLSL,
+                        m_archiveType,
+                        blob.writeRef()));
+                }
                 StringBuilder builder;
                 StringWriter writer(&builder, 0);
 
@@ -2220,7 +2260,7 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
                     16,
                     &writer));
 
-                File::writeAllText(fileName.value, builder);
+                File::writeNativeText(fileName.value, builder.getBuffer(), builder.getLength());
                 break;
             }
         case OptionKind::DumpIrIds:
@@ -2763,9 +2803,7 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
         case OptionKind::Help:
             {
                 SLANG_RETURN_ON_FAIL(_parseHelp(arg));
-
-                // We retun an error so after this has successfully passed, we quit
-                return SLANG_FAIL;
+                return SLANG_OK;
             }
         case OptionKind::EmitSpirvViaGLSL:
         case OptionKind::EmitSpirvDirectly:
@@ -3497,6 +3535,7 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
                     case CodeGenTarget::MetalLib:
                     case CodeGenTarget::MetalLibAssembly:
                     case CodeGenTarget::Metal:
+                    case CodeGenTarget::WGSL:
                         rawOutput.isWholeProgram = true;
                         break;
                     case CodeGenTarget::SPIRV:
