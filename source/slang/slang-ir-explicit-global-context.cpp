@@ -46,6 +46,7 @@ struct IntroduceExplicitGlobalContextPass
             switch (target)
             {
             case CodeGenTarget::SPIRV:
+            case CodeGenTarget::SPIRVKernel:
             case CodeGenTarget::SPIRVAssembly:
                 hoistableGlobalObjectKind = GlobalObjectKind::GlobalVar;
                 requiresFuncTypeCorrectionPass = true;

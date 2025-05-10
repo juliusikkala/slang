@@ -2239,6 +2239,7 @@ LayoutRulesFamilyImpl* getDefaultLayoutRulesFamilyForTarget(TargetRequest* targe
 
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         return &kGLSLLayoutRulesFamilyImpl;
 
@@ -2518,6 +2519,7 @@ bool isKhronosTarget(CodeGenTarget target)
 
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         return true;
     }
@@ -2579,6 +2581,7 @@ SourceLanguage getIntermediateSourceLanguageForTarget(TargetProgram* targetProgr
     case CodeGenTarget::GLSL:
         // If we aren't emitting directly we are going to output GLSL to feed to GLSLANG
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         {
             return SourceLanguage::GLSL;

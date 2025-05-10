@@ -64,6 +64,7 @@ struct CLikeSourceEmitter::ComputeEmitActionsContext
         }
     case CodeGenTarget::PTX:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
     case CodeGenTarget::DXBytecode:
     case CodeGenTarget::DXBytecodeAssembly:

@@ -1260,6 +1260,7 @@ Profile getEffectiveProfile(EntryPoint* entryPoint, TargetRequest* target)
 
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         if (targetProfile.getFamily() != ProfileFamily::GLSL)
         {
@@ -2253,6 +2254,7 @@ CapabilitySet TargetRequest::getTargetCaps()
         atoms.add(CapabilityName::glsl);
         break;
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         if (getOptionSet().shouldEmitSPIRVDirectly())
         {

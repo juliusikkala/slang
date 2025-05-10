@@ -3531,6 +3531,7 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
              m_rawTargets[0].format == CodeGenTarget::PyTorchCppBinding ||
              m_rawTargets[0].format == CodeGenTarget::CUDASource ||
              m_rawTargets[0].format == CodeGenTarget::SPIRV ||
+             m_rawTargets[0].format == CodeGenTarget::SPIRVKernel ||
              m_rawTargets[0].format == CodeGenTarget::SPIRVAssembly ||
              m_rawTargets[0].format == CodeGenTarget::Metal ||
              m_rawTargets[0].format == CodeGenTarget::MetalLib ||
@@ -3619,6 +3620,7 @@ SlangResult OptionsParser::_parse(int argc, char const* const* argv)
                         rawOutput.isWholeProgram = true;
                         break;
                     case CodeGenTarget::SPIRV:
+                    case CodeGenTarget::SPIRVKernel:
                     case CodeGenTarget::SPIRVAssembly:
                         if (getCurrentTarget()->optionSet.shouldEmitSPIRVDirectly())
                         {

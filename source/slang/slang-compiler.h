@@ -68,6 +68,7 @@ enum class CodeGenTarget : SlangCompileTargetIntegral
     GLSL = SLANG_GLSL,
     HLSL = SLANG_HLSL,
     SPIRV = SLANG_SPIRV,
+    SPIRVKernel = SLANG_SPIRV_KERNEL,
     SPIRVAssembly = SLANG_SPIRV_ASM,
     DXBytecode = SLANG_DXBC,
     DXBytecodeAssembly = SLANG_DXBC_ASM,

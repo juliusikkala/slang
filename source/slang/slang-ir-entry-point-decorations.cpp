@@ -96,7 +96,9 @@ private:
 
     bool isTargetSPIRV() const
     {
-        return m_target == CodeGenTarget::SPIRV || m_target == CodeGenTarget::SPIRVAssembly;
+        return m_target == CodeGenTarget::SPIRV ||
+            m_target == CodeGenTarget::SPIRVKernel ||
+            m_target == CodeGenTarget::SPIRVAssembly;
     }
 
     bool isTargetMetal() const

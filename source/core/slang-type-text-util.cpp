@@ -49,6 +49,7 @@ static const TypeTextUtil::CompileTargetInfo s_compileTargetInfos[] = {
      "DirectX Intermediate Language assembly"},
     {SLANG_GLSL, "glsl,vert,frag,geom,tesc,tese,comp", "glsl", "GLSL(Vulkan) source code"},
     {SLANG_SPIRV, "spv", "spirv", "SPIR-V binary"},
+    {SLANG_SPIRV_KERNEL, "spv", "spirv-kernel", "SPIR-V binary (OpenCL kernel)"},
     {SLANG_SPIRV_ASM, "spv-asm", "spirv-asm,spirv-assembly", "SPIR-V assembly"},
     {SLANG_C_SOURCE, "c", "c", "C source code"},
     {SLANG_CPP_SOURCE, "cpp,c++,cxx", "cpp,c++,cxx", "C++ source code"},

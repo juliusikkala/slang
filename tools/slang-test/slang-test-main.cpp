@@ -1059,6 +1059,7 @@ static PassThroughFlags _getPassThroughFlagsForTarget(SlangCompileTarget target)
 
     case SLANG_HLSL:
     case SLANG_GLSL:
+    case SLANG_SPIRV_KERNEL:
     case SLANG_C_SOURCE:
     case SLANG_CPP_SOURCE:
     case SLANG_CPP_PYTORCH_BINDING:

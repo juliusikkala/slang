@@ -46,6 +46,7 @@ public enum SlangCompileTarget
     SLANG_GLSL_VULKAN_ONE_DESC, //< deprecated
     SLANG_HLSL,
     SLANG_SPIRV,
+    SLANG_SPIRV_KERNEL,
     SLANG_SPIRV_ASM,
     SLANG_DXBC,
     SLANG_DXBC_ASM,

@@ -375,7 +375,9 @@ void verifyComputeDerivativeGroupModifiers(
 
 inline bool isSPIRV(CodeGenTarget codeGenTarget)
 {
-    return codeGenTarget == CodeGenTarget::SPIRV || codeGenTarget == CodeGenTarget::SPIRVAssembly;
+    return codeGenTarget == CodeGenTarget::SPIRV ||
+        codeGenTarget == CodeGenTarget::SPIRVKernel ||
+        codeGenTarget == CodeGenTarget::SPIRVAssembly;
 }
 
 int getIRVectorElementSize(IRType* type);

@@ -596,6 +596,7 @@ typedef uint32_t SlangSizeT;
         SLANG_GLSL_VULKAN_ONE_DESC_DEPRECATED, //< deprecated and removed.
         SLANG_HLSL,
         SLANG_SPIRV,
+        SLANG_SPIRV_KERNEL,
         SLANG_SPIRV_ASM,
         SLANG_DXBC,
         SLANG_DXBC_ASM,

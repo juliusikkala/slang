@@ -562,6 +562,7 @@ PassThroughMode getDownstreamCompilerRequiredForTarget(CodeGenTarget target)
         }
     case CodeGenTarget::WGSLSPIRVAssembly:
     case CodeGenTarget::SPIRVAssembly:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRV:
         {
             return PassThroughMode::SpirvDis;
@@ -1041,6 +1042,7 @@ static RefPtr<ExtensionTracker> _newExtensionTracker(CodeGenTarget target)
             return new CUDAExtensionTracker;
         }
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::GLSL:
     case CodeGenTarget::WGSL:
     case CodeGenTarget::WGSLSPIRV:
@@ -1821,6 +1823,7 @@ SlangResult CodeGenContext::_emitEntryPoints(ComPtr<IArtifact>& outArtifact)
             return SLANG_OK;
         }
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
         if (getTargetProgram()->getOptionSet().shouldEmitSPIRVDirectly())
         {
             SLANG_RETURN_ON_FAIL(emitSPIRVForEntryPointsDirectly(this, outArtifact));
@@ -1882,6 +1885,7 @@ SlangResult CodeGenContext::emitEntryPoints(ComPtr<IArtifact>& outArtifact)
     case CodeGenTarget::DXBytecodeAssembly:
     case CodeGenTarget::DXILAssembly:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::DXIL:
     case CodeGenTarget::DXBytecode:
     case CodeGenTarget::MetalLib:

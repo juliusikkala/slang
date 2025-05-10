@@ -786,6 +786,7 @@ struct LoweredElementTypeContext
             switch (target->getTargetReq()->getTarget())
             {
             case CodeGenTarget::SPIRV:
+            case CodeGenTarget::SPIRVKernel:
             case CodeGenTarget::SPIRVAssembly:
                 {
                     auto scalarType = type;

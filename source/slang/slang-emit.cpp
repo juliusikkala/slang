@@ -1190,6 +1190,7 @@ Result linkAndOptimizeIR(
     switch (target)
     {
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
     case CodeGenTarget::HLSL:
         break;
@@ -1418,6 +1419,7 @@ Result linkAndOptimizeIR(
 
         case CodeGenTarget::GLSL:
         case CodeGenTarget::SPIRV:
+        case CodeGenTarget::SPIRVKernel:
         case CodeGenTarget::SPIRVAssembly:
             // For GLSL targets, we want to translate the vector load/store
             // operations into scalar ops. This is in part as a simplification,
@@ -1512,7 +1514,7 @@ Result linkAndOptimizeIR(
 
     // For SPIR-V, this function is called elsewhere, so that it can happen after address space
     // specialization
-    if (target != CodeGenTarget::SPIRV && target != CodeGenTarget::SPIRVAssembly)
+    if (target != CodeGenTarget::SPIRV && target != CodeGenTarget::SPIRVKernel && target != CodeGenTarget::SPIRVAssembly)
     {
         bool skipFuncParamValidation = true;
         validateAtomicOperations(skipFuncParamValidation, sink, irModule->getModuleInst());
@@ -1560,6 +1562,7 @@ Result linkAndOptimizeIR(
     {
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         {
             ShaderExtensionTracker glslExtensionTracker;
@@ -1642,6 +1645,7 @@ Result linkAndOptimizeIR(
     case CodeGenTarget::Metal:
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         {
             legalizeImageSubscript(targetRequest, irModule, sink);
@@ -1656,6 +1660,7 @@ Result linkAndOptimizeIR(
     {
     case CodeGenTarget::GLSL:
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         {
             legalizeConstantBufferLoadForGLSL(irModule);
@@ -1677,6 +1682,7 @@ Result linkAndOptimizeIR(
         break;
     // For SPIR-V to SROA across 2 entry-points a value must not be a global
     case CodeGenTarget::SPIRV:
+    case CodeGenTarget::SPIRVKernel:
     case CodeGenTarget::SPIRVAssembly:
         moveGlobalVarInitializationToEntryPoints(irModule, targetProgram);
         if (targetProgram->getOptionSet().getBoolOption(
@@ -1901,7 +1907,7 @@ Result linkAndOptimizeIR(
 #endif
     validateIRModuleIfEnabled(codeGenContext, irModule);
 
-    if ((target != CodeGenTarget::SPIRV) && (target != CodeGenTarget::SPIRVAssembly))
+    if ((target != CodeGenTarget::SPIRV) && (target != CodeGenTarget::SPIRVKernel) && (target != CodeGenTarget::SPIRVAssembly))
     {
         // We need to perform a final pass to ensure that all the
         // variables in the IR module have their scopes set correctly.

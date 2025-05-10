@@ -16,6 +16,7 @@ static Slang::String SlangCompileTargetToString(const SlangCompileTarget target)
         CASE(SLANG_GLSL_VULKAN_ONE_DESC_DEPRECATED);
         CASE(SLANG_HLSL);
         CASE(SLANG_SPIRV);
+        CASE(SLANG_SPIRV_KERNEL);
         CASE(SLANG_SPIRV_ASM);
         CASE(SLANG_DXBC);
         CASE(SLANG_DXIL);
