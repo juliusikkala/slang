@@ -110,6 +110,8 @@ enum class AddressSpace : uint64_t
     SpecializationConstant,
     // Corresponds to SPIR-V's SpvStorageClassNodePayloadAMDX,
     NodePayloadAMDX,
+    // Corresponds to SPIR-V's SpvStorageClassCrossWorkgroup,
+    CrossWorkgroup,
 
     // Default address space for a user-defined pointer
     UserPointer = 0x100000001ULL,

@@ -1471,6 +1471,11 @@ IRTypeLayoutRules* getTypeLayoutRuleForBuffer(TargetProgram* target, IRType* buf
         // If the user specified a scalar buffer layout, then just use that.
         if (target->getOptionSet().shouldUseScalarLayout())
             return IRTypeLayoutRules::getNatural();
+
+        if (target->getTargetReq()->getTarget() == CodeGenTarget::SPIRVKernel)
+        {
+            return IRTypeLayoutRules::getNatural();
+        }
     }
 
     if (target->getOptionSet().shouldUseDXLayout())

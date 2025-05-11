@@ -43,7 +43,8 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
 
     struct LoweredStructuredBufferTypeInfo
     {
-        IRType* structType;
+        // 'type' is a struct in Shader SPIR-V, and a pointer in Kernel SPIR-V.
+        IRType* type;
         IRStructKey* arrayKey;
         IRArrayTypeBase* runtimeArrayType;
     };
@@ -109,7 +110,7 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         return structType;
     }
 
-    LoweredStructuredBufferTypeInfo lowerStructuredBufferType(IRHLSLStructuredBufferTypeBase* inst)
+    LoweredStructuredBufferTypeInfo lowerStructuredBufferTypeShader(IRHLSLStructuredBufferTypeBase* inst)
     {
         LoweredStructuredBufferTypeInfo result;
         if (m_loweredStructuredBufferTypes.tryGetValue(inst, result))
@@ -168,11 +169,57 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
         else
             builder.addDecorationIfNotExist(structType, kIROp_SPIRVBufferBlockDecoration);
 
-        result.structType = structType;
+        result.type = structType;
         result.arrayKey = arrayKey;
         result.runtimeArrayType = arrayType;
         m_loweredStructuredBufferTypes[inst] = result;
         return result;
+    }
+
+    LoweredStructuredBufferTypeInfo lowerStructuredBufferTypeKernel(IRHLSLStructuredBufferTypeBase* inst)
+    {
+        LoweredStructuredBufferTypeInfo result;
+        if (m_loweredStructuredBufferTypes.tryGetValue(inst, result))
+            return result;
+
+        IRBuilder builder(m_sharedContext->m_irModule);
+
+        builder.setInsertBefore(inst);
+        auto elementType = inst->getElementType();
+
+        StringBuilder nameSb;
+        switch (inst->getOp())
+        {
+        case kIROp_HLSLRWStructuredBufferType:
+            nameSb << "RWStructuredBuffer";
+            break;
+        case kIROp_HLSLAppendStructuredBufferType:
+            nameSb << "AppendStructuredBuffer";
+            break;
+        case kIROp_HLSLConsumeStructuredBufferType:
+            nameSb << "ConsumeStructuredBuffer";
+            break;
+        case kIROp_HLSLRasterizerOrderedStructuredBufferType:
+            nameSb << "RasterizerOrderedStructuredBuffer";
+            break;
+        default:
+            nameSb << "StructuredBuffer";
+            break;
+        }
+        builder.addNameHintDecoration(elementType, nameSb.getUnownedSlice());
+
+        result.type = elementType;
+        result.arrayKey = nullptr;
+        result.runtimeArrayType = nullptr;
+        m_loweredStructuredBufferTypes[inst] = result;
+        return result;
+    }
+
+    LoweredStructuredBufferTypeInfo lowerStructuredBufferType(IRHLSLStructuredBufferTypeBase* inst)
+    {
+        return m_sharedContext->isKernelSpirv() ?
+            lowerStructuredBufferTypeKernel(inst) :
+            lowerStructuredBufferTypeShader(inst);
     }
 
     // We will use a single work list of instructions that need
@@ -503,7 +550,7 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             }
             else if (auto structuredBufferType = as<IRHLSLStructuredBufferTypeBase>(innerType))
             {
-                innerType = lowerStructuredBufferType(structuredBufferType).structType;
+                innerType = lowerStructuredBufferType(structuredBufferType).type;
                 addressSpace = getStorageBufferAddressSpace();
                 needLoad = false;
 
@@ -1074,6 +1121,8 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
 
     AddressSpace getStorageBufferAddressSpace()
     {
+        if (m_sharedContext->isKernelSpirv())
+            return AddressSpace::CrossWorkgroup;
         return m_sharedContext->isSpirv14OrLater() ? AddressSpace::StorageBuffer
                                                    : AddressSpace::Uniform;
     }
@@ -2011,7 +2060,7 @@ struct SPIRVLegalizationContext : public SourceEmitterBase
             builder.setInsertBefore(t);
             t->replaceUsesWith(builder.getPtrType(
                 kIROp_PtrType,
-                lowered.structType,
+                lowered.type,
                 getStorageBufferAddressSpace()));
         }
         for (auto t : textureFootprintTypes)

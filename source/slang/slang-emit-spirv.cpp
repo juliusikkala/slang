@@ -1314,6 +1314,8 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
             return SpvStorageClassPhysicalStorageBuffer;
         case AddressSpace::NodePayloadAMDX:
             return SpvStorageClassNodePayloadAMDX;
+        case AddressSpace::CrossWorkgroup:
+            return SpvStorageClassCrossWorkgroup;
         case AddressSpace::Global:
         case AddressSpace::MetalObjectData:
         case AddressSpace::SpecializationConstant:
@@ -1338,35 +1340,55 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
     /// the SPIR-V module must include to make it usable.
     void emitFrontMatter()
     {
-        // TODO: We should ideally add SPIR-V capabilities to
-        // the module as we emit instructions that require them.
-        // For now we will always emit the `Shader` capability,
-        // since every Vulkan shader module will use it.
-        //
-        emitOpCapability(
-            getSection(SpvLogicalSectionID::Capabilities),
-            nullptr,
-            SpvCapabilityShader);
+        bool openclKernel = m_targetRequest->getTarget() == CodeGenTarget::SPIRVKernel;
+        if (openclKernel)
+        {
+            emitOpCapability(
+                getSection(SpvLogicalSectionID::Capabilities),
+                nullptr,
+                SpvCapabilityKernel);
 
-        // [2.4: Logical Layout of a Module]
-        //
-        // > The single required OpMemoryModel instruction.
-        //
-        // A memory model is always required in SPIR-V module.
-        //
-        // The Vulkan spec further says:
-        //
-        // > The `Logical` addressing model must be selected
-        //
-        // It isn't clear if the GLSL450 memory model is also
-        // a requirement, but it is what glslang produces,
-        // so we will use it for now.
-        //
-        emitOpMemoryModel(
-            getSection(SpvLogicalSectionID::MemoryModel),
-            nullptr,
-            m_addressingMode,
-            SpvMemoryModelGLSL450);
+            m_addressingMode = SpvAddressingModelPhysical64;
+            requireSPIRVCapability(SpvCapabilityAddresses);
+            requireSPIRVCapability(SpvCapabilityInt64);
+            emitOpMemoryModel(
+                getSection(SpvLogicalSectionID::MemoryModel),
+                nullptr,
+                m_addressingMode,
+                SpvMemoryModelOpenCL);
+        }
+        else
+        {
+            // TODO: We should ideally add SPIR-V capabilities to
+            // the module as we emit instructions that require them.
+            // For now we will always emit the `Shader` capability,
+            // since every Vulkan shader module will use it.
+            //
+            emitOpCapability(
+                getSection(SpvLogicalSectionID::Capabilities),
+                nullptr,
+                SpvCapabilityShader);
+
+            // [2.4: Logical Layout of a Module]
+            //
+            // > The single required OpMemoryModel instruction.
+            //
+            // A memory model is always required in SPIR-V module.
+            //
+            // The Vulkan spec further says:
+            //
+            // > The `Logical` addressing model must be selected
+            //
+            // It isn't clear if the GLSL450 memory model is also
+            // a requirement, but it is what glslang produces,
+            // so we will use it for now.
+            //
+            emitOpMemoryModel(
+                getSection(SpvLogicalSectionID::MemoryModel),
+                nullptr,
+                m_addressingMode,
+                SpvMemoryModelGLSL450);
+        }
     }
 
     IRInst* m_defaultDebugSource = nullptr;
@@ -1470,6 +1492,8 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
 
     bool shouldEmitArrayStride(IRInst* elementType)
     {
+        if (isKernelSpirv())
+            return false;
         for (auto decor : elementType->getDecorations())
         {
             switch (decor->getOp())
@@ -1519,10 +1543,11 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
                     requireSPIRVCapability(SpvCapabilityInt64);
                 else if (i.width == 8)
                     requireSPIRVCapability(SpvCapabilityInt8);
+                // The Kernel
                 return emitOpTypeInt(
                     inst,
                     SpvLiteralInteger::from32(int32_t(i.width)),
-                    SpvLiteralInteger::from32(i.isSigned));
+                    SpvLiteralInteger::from32(isKernelSpirv() ? 0 : i.isSigned));
             }
 
             // > OpTypeFloat
@@ -5211,7 +5236,8 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
             CASE(Domain, TessellationEvaluation);
             CASE(Geometry, Geometry);
             CASE(Fragment, Fragment);
-            CASE(Compute, GLCompute);
+        case Stage::Compute:
+            return isKernelSpirv() ? SpvExecutionModelKernel : SpvExecutionModelGLCompute;
             CASE(Mesh, MeshEXT);
             CASE(Amplification, TaskEXT);
             CASE(ClosestHit, ClosestHitKHR);
@@ -6504,15 +6530,28 @@ struct SPIRVEmitContext : public SourceEmitterBase, public SPIRVEmitSharedContex
     {
         //"%addr = OpAccessChain resultType*StorageBuffer resultId _0 const(int, 0) _1;"
         IRBuilder builder(inst);
-        auto addressSpace =
-            isSpirv14OrLater() ? AddressSpace::StorageBuffer : AddressSpace::Uniform;
-        return emitOpAccessChain(
-            parent,
-            inst,
-            // Make sure the resulting pointer has the correct storage class
-            getPtrTypeWithAddressSpace(cast<IRPtrTypeBase>(inst->getDataType()), addressSpace),
-            inst->getOperand(0),
-            makeArray(emitIntConstant(0, builder.getIntType()), ensureInst(inst->getOperand(1))));
+        if (isKernelSpirv())
+        {
+            auto addressSpace = AddressSpace::CrossWorkgroup;
+            return emitOpAccessChain(
+                parent,
+                inst,
+                getPtrTypeWithAddressSpace(cast<IRPtrTypeBase>(inst->getDataType()), addressSpace),
+                inst->getOperand(0),
+                makeArray(ensureInst(inst->getOperand(1))));
+        }
+        else
+        {
+            auto addressSpace =
+                isSpirv14OrLater() ? AddressSpace::StorageBuffer : AddressSpace::Uniform;
+            return emitOpAccessChain(
+                parent,
+                inst,
+                // Make sure the resulting pointer has the correct storage class
+                getPtrTypeWithAddressSpace(cast<IRPtrTypeBase>(inst->getDataType()), addressSpace),
+                inst->getOperand(0),
+                makeArray(emitIntConstant(0, builder.getIntType()), ensureInst(inst->getOperand(1))));
+        }
     }
 
     SpvInst* emitStructuredBufferGetDimensions(SpvInstParent* parent, IRInst* inst)
@@ -8432,7 +8471,6 @@ SlangResult emitSPIRVFromIR(
     spirvOut.clear();
 
     bool symbolsEmitted = false;
-
     auto sink = codeGenContext->getSink();
 
 #if 0
@@ -8448,6 +8486,7 @@ SlangResult emitSPIRVFromIR(
 #endif
 
     SPIRVEmitContext context(irModule, codeGenContext->getTargetProgram(), sink);
+
     legalizeIRForSPIRV(&context, irModule, irEntryPoints, codeGenContext);
 
 #if 0

@@ -40,6 +40,11 @@ struct SPIRVEmitSharedContext
         m_spvVersion = Math::Max(m_spvVersion, version);
     }
 
+    bool isKernelSpirv()
+    {
+        return m_targetRequest->getTarget() == CodeGenTarget::SPIRVKernel;
+    }
+
     SPIRVEmitSharedContext(IRModule* module, TargetProgram* program, DiagnosticSink* sink)
         : m_irModule(module)
         , m_targetProgram(program)
