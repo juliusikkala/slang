@@ -643,6 +643,13 @@ struct ASTLookupStmtVisitor : public StmtVisitor<ASTLookupStmtVisitor, bool>
         return dispatchIfNotNull(stmt->negativeStatement);
     }
 
+    bool visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt)
+    {
+        if (dispatchIfNotNull(stmt->positiveStatement))
+            return true;
+        return dispatchIfNotNull(stmt->negativeStatement);
+    }
+
     bool visitUnparsedStmt(UnparsedStmt*) { return false; }
 
     bool visitEmptyStmt(EmptyStmt*) { return false; }

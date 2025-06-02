@@ -427,6 +427,14 @@ struct ASTIterator
             dispatchIfNotNull(stmt->negativeStatement);
         }
 
+        void visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt)
+        {
+            iterator->maybeDispatchCallback(stmt);
+            iterator->visitDecl(stmt->constraints);
+            dispatchIfNotNull(stmt->positiveStatement);
+            dispatchIfNotNull(stmt->negativeStatement);
+        }
+
         void visitUnparsedStmt(UnparsedStmt* stmt) { iterator->maybeDispatchCallback(stmt); }
 
         void visitEmptyStmt(EmptyStmt* stmt) { iterator->maybeDispatchCallback(stmt); }

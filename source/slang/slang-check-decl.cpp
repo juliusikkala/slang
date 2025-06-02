@@ -857,6 +857,13 @@ struct SemanticsDeclReferenceVisitor : public SemanticsDeclVisitorBase,
         dispatchIfNotNull(stmt->negativeStatement);
     }
 
+    void visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt)
+    {
+        dispatchIfNotNull(stmt->constraints);
+        dispatchIfNotNull(stmt->positiveStatement);
+        dispatchIfNotNull(stmt->negativeStatement);
+    }
+
     void visitUnparsedStmt(UnparsedStmt*) { return; }
 
     void visitEmptyStmt(EmptyStmt*) { return; }

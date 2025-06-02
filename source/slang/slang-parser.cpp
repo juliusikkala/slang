@@ -209,6 +209,7 @@ public:
     DeclStmt* parseVarDeclrStatement(Modifiers modifiers);
     IfStmt* parseIfStatement();
     Stmt* parseIfLetStatement();
+    Stmt* parseIfWhereStatement();
     ForStmt* ParseForStatement();
     WhileStmt* ParseWhileStatement();
     DoWhileStmt* ParseDoWhileStatement(Stmt* body);
@@ -5754,6 +5755,10 @@ Stmt* Parser::ParseStatement(Stmt* parentStmt)
         {
             statement = parseIfLetStatement();
         }
+        else if (LookAheadToken("where", 2))
+        {
+            statement = parseIfWhereStatement();
+        }
         else
         {
             statement = parseIfStatement();
@@ -6184,6 +6189,33 @@ Stmt* Parser::parseIfLetStatement()
     PopScope();
 
     return newBody;
+}
+
+Stmt* Parser::parseIfWhereStatement()
+{
+    auto conditionalWitnessStmt = astBuilder->create<ConditionalWitnessStmt>();
+    FillPosition(conditionalWitnessStmt);
+    ReadToken("if");
+    ReadToken(TokenType::LParent);
+
+    auto scopeDecl = astBuilder->create<ScopeDecl>();
+    pushScopeAndSetParent(scopeDecl);
+    conditionalWitnessStmt->constraints = scopeDecl;
+
+    maybeParseGenericConstraints(this, scopeDecl);
+
+    ReadToken(TokenType::RParent);
+    conditionalWitnessStmt->positiveStatement = ParseStatement(conditionalWitnessStmt);
+
+    PopScope();
+
+    if (LookAheadToken("else"))
+    {
+        ReadToken("else");
+        conditionalWitnessStmt->negativeStatement = ParseStatement(conditionalWitnessStmt);
+    }
+
+    return conditionalWitnessStmt;
 }
 
 IfStmt* Parser::parseIfStatement()

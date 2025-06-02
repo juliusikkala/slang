@@ -3065,6 +3065,8 @@ struct SemanticsStmtVisitor : public SemanticsVisitor, StmtVisitor<SemanticsStmt
 
     void visitIfStmt(IfStmt* stmt);
 
+    void visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt);
+
     void visitUnparsedStmt(UnparsedStmt*);
 
     void visitEmptyStmt(EmptyStmt*);

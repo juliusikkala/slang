@@ -88,6 +88,15 @@ class IfStmt : public Stmt
 };
 
 FIDDLE()
+class ConditionalWitnessStmt : public Stmt
+{
+    FIDDLE(...)
+    FIDDLE() ScopeDecl* constraints = nullptr;
+    FIDDLE() Stmt* positiveStatement = nullptr;
+    FIDDLE() Stmt* negativeStatement = nullptr;
+};
+
+FIDDLE()
 class UniqueStmtIDNode : public Decl
 {
     FIDDLE(...)

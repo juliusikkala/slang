@@ -6260,6 +6260,11 @@ struct StmtLoweringVisitor : StmtVisitor<StmtLoweringVisitor>
         }
     }
 
+    void visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt)
+    {
+        // TODO IR
+    }
+
     void addLoopDecorations(IRInst* inst, Stmt* stmt)
     {
         if (stmt->findModifier<UnrollAttribute>())

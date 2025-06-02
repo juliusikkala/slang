@@ -528,6 +528,17 @@ void SemanticsStmtVisitor::visitIfStmt(IfStmt* stmt)
     checkStmt(stmt->negativeStatement);
 }
 
+void SemanticsStmtVisitor::visitConditionalWitnessStmt(ConditionalWitnessStmt* stmt)
+{
+    for (auto decl : stmt->constraints->members)
+    {
+        if (as<AggTypeDeclBase>(decl))
+            ensureAllDeclsRec(decl, DeclCheckState::DefinitionChecked);
+    }
+    checkStmt(stmt->positiveStatement);
+    checkStmt(stmt->negativeStatement);
+}
+
 void SemanticsStmtVisitor::visitUnparsedStmt(UnparsedStmt*)
 {
     // Nothing to do
