@@ -618,7 +618,7 @@ static void _lookUpMembersInSuperTypeImpl(
 {
     // If the type was pointer-like, then dereference it
     // automatically here.
-    if (((uint32_t)request.options & (uint32_t)LookupOptions::NoDeref) == 0)
+    if (((uint32_t)request.options & (uint32_t)LookupOptions::NoDeref) == 0 && getText(name) != "This")
     {
         if (auto pointerElementType = getPointedToTypeIfCanImplicitDeref(superType))
         {
