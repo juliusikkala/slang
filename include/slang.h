@@ -117,6 +117,8 @@ Most applications should not need to touch this section.
         #define SLANG_WIIU 1
     #elif defined(__EMSCRIPTEN__)
         #define SLANG_WASM 1
+    #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+        #define SLANG_BSD 1
     #else
         #error "unknown target platform"
     #endif
@@ -162,6 +164,9 @@ Most applications should not need to touch this section.
     #ifndef SLANG_WIIU
         #define SLANG_WIIU 0
     #endif
+    #ifndef SLANG_BSD
+        #define SLANG_BSD 0
+    #endif
 #endif /* SLANG_PLATFORM */
 
 /* Shorthands for "families" of compilers/platforms */
@@ -171,7 +176,7 @@ Most applications should not need to touch this section.
 #define SLANG_LINUX_FAMILY (SLANG_LINUX || SLANG_ANDROID)
 #define SLANG_APPLE_FAMILY (SLANG_IOS || SLANG_OSX) /* equivalent to #if __APPLE__ */
 #define SLANG_UNIX_FAMILY \
-    (SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY) /* shortcut for unix/posix platforms */
+    (SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_BSD) /* shortcut for unix/posix platforms */
 
 /* Macros concerning DirectX */
 #if !defined(SLANG_CONFIG_DX_ON_VK) || !SLANG_CONFIG_DX_ON_VK

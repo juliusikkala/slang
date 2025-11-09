@@ -285,7 +285,7 @@ SLANG_COMPILE_TIME_ASSERT(E_OUTOFMEMORY == SLANG_E_OUT_OF_MEMORY);
     dst.append("lib");
     dst.append(name);
     dst.append(".dylib");
-#elif SLANG_LINUX_FAMILY
+#elif SLANG_LINUX_FAMILY || SLANG_BSD
     if (!name.startsWith("lib"))
         dst.append("lib");
     dst.append(name);
@@ -341,6 +341,8 @@ SLANG_COMPILE_TIME_ASSERT(E_OUTOFMEMORY == SLANG_E_OUT_OF_MEMORY);
     return PlatformKind::PSP2;
 #elif SLANG_WIIU
     return PlatformKind::WIIU;
+#elif SLANG_BSD
+    return PlatformKind::BSD;
 #else
     return PlatformKind::Unknown;
 #endif
@@ -353,7 +355,7 @@ static const PlatformFlags s_familyFlags[int(PlatformFamily::CountOf)] = {
         PlatformFlag::XBoxOne,                   // Microsoft
     PlatformFlag::Linux | PlatformFlag::Android, // Linux
     PlatformFlag::IOS | PlatformFlag::OSX,       // Apple
-    PlatformFlag::Linux | PlatformFlag::Android | PlatformFlag::IOS | PlatformFlag::OSX, // Unix
+    PlatformFlag::Linux | PlatformFlag::Android | PlatformFlag::IOS | PlatformFlag::OSX | PlatformFlag::BSD, // Unix
 };
 
 /* static */ PlatformFlags PlatformUtil::getPlatformFlags(PlatformFamily family)

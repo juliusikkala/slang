@@ -6,7 +6,7 @@
 
 #if defined(_WIN32)
 #include <windows.h>
-#elif defined(__linux__) || defined(SLANG_OSX)
+#elif defined(__linux__) || defined(SLANG_OSX) || SLANG_BSD
 #include <dlfcn.h>
 #endif
 #include <sys/stat.h>
@@ -146,7 +146,7 @@ String SharedLibraryUtils::getSharedLibraryFileName(void* symbolInLib)
     }
     return String::fromWString(filenameBuffer);
 
-#elif defined(__linux__) || defined(SLANG_OSX)
+#elif defined(__linux__) || defined(SLANG_OSX) || SLANG_BSD
     Dl_info dllInfo;
     if (!dladdr(symbolInLib, &dllInfo))
     {

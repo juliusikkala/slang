@@ -22,7 +22,7 @@
 // clang-format on
 #endif
 
-#if defined(__linux__) || defined(__CYGWIN__) || SLANG_APPLE_FAMILY || SLANG_WASM
+#if defined(__linux__) || defined(__CYGWIN__) || SLANG_APPLE_FAMILY || SLANG_WASM || SLANG_BSD
 #include <fcntl.h>
 #include <unistd.h>
 // For Path::find

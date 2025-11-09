@@ -18,6 +18,23 @@
       }
     },
     {
+      "name": "minimal",
+      "description": "Minimal build with only end-user features",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo;MinSizeRel",
+        "SLANG_ENABLE_AFTERMATH": "OFF",
+        "SLANG_ENABLE_GFX": "OFF",
+        "SLANG_ENABLE_REPLAYER": "OFF",
+        "SLANG_ENABLE_SLANG_RHI": "OFF",
+        "SLANG_ENABLE_SPLIT_DEBUG_INFO": "OFF",
+        "SLANG_ENABLE_TESTS": "OFF",
+        "SLANG_ENABLE_EXAMPLES": "OFF"
+      }
+    },
+    {
       "name": "emscripten",
       "description": "Emscripten-based Wasm build",
       "generator": "Ninja Multi-Config",

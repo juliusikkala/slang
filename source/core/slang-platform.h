@@ -23,6 +23,7 @@ enum class PlatformKind : uint8_t
     PS4,
     PSP2,
     WIIU,
+    BSD,
     CountOf,
 };
 
@@ -45,6 +46,7 @@ struct PlatformFlag
         PS4 = 1 << int(PlatformKind::PS4),
         PSP2 = 1 << int(PlatformKind::PSP2),
         WIIU = 1 << int(PlatformKind::WIIU),
+        BSD = 1 << int(PlatformKind::BSD),
     };
 };
 

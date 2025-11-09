@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#if SLANG_OSX
+#if SLANG_OSX || SLANG_BSD
 #include <signal.h>
 #endif
 
