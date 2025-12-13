@@ -717,5 +717,6 @@ return {
 	["NoneWitnessTableElement"] = 715,
 	["GetTagForSubSet"] = 716,
 	["Decoration.DisallowSpecializationWithExistentialsDecoration"] = 717,
-	["CheckOptionalWitness"] = 718
+	["CheckOptionalWitness"] = 718,
+	["none_witness_table"] = 719
 }

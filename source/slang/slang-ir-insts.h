@@ -2209,6 +2209,14 @@ struct IRWitnessTable : IRInst
     IRType* getConcreteType() { return (IRType*)getOperand(0); }
 };
 
+// The None witness table is a sentinel value that marks a witness table as
+// non-existent for optional constraints.
+FIDDLE()
+struct IRNoneWitnessTable : IRInst
+{
+    FIDDLE(leafInst())
+};
+
 /// Represents an RTTI object.
 /// An IRRTTIObject has 1 operand, specifying the type
 /// this RTTI object provides info for.
@@ -3800,6 +3808,8 @@ $(type_info.return_type) $(type_info.method_name)(
     IRInst* createThisTypeWitness(IRType* interfaceType);
 
     IRInst* getTypeEqualityWitness(IRType* witnessType, IRType* type1, IRType* type2);
+
+    IRInst* createNoneWitnessTable(IRType* baseType);
 
     IRInterfaceRequirementEntry* createInterfaceRequirementEntry(
         IRInst* requirementKey,

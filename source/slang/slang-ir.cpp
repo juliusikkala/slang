@@ -4619,6 +4619,14 @@ IRInst* IRBuilder::getTypeEqualityWitness(IRType* witnessType, IRType* type1, IR
     return (IRType*)createIntrinsicInst(witnessType, kIROp_TypeEqualityWitness, 2, operands);
 }
 
+IRInst* IRBuilder::createNoneWitnessTable(IRType* baseType)
+{
+    return createInst<IRNoneWitnessTable>(
+        this,
+        kIROp_NoneWitnessTable,
+        getWitnessTableType(baseType));
+}
+
 IRStructType* IRBuilder::createStructType()
 {
     IRStructType* structType = createInst<IRStructType>(this, kIROp_StructType, getTypeKind());
@@ -8608,6 +8616,7 @@ bool IRInst::mightHaveSideEffects(SideEffectAnalysisOptions options)
     case kIROp_UninitializedWitnessTableElement:
     case kIROp_NoneTypeElement:
     case kIROp_NoneWitnessTableElement:
+    case kIROp_NoneWitnessTable:
         return false;
 
     case kIROp_ForwardDifferentiate:

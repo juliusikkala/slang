@@ -843,14 +843,22 @@ struct SpecializationContext
         builder.setInsertBefore(inst);
 
         auto witness = cast<IRCheckOptionalWitness>(inst)->getWitness();
-        // Only proceed if the witness table is concrete.
-        if (!as<IRWitnessTable>(witness))
+        bool isSatisfied = false;
+        if (as<IRWitnessTable>(witness))
+        {
+            isSatisfied = true;
+        }
+        else if (as<IRNoneWitnessTable>(witness))
+        {
+            isSatisfied = false;
+        }
+        else
+        {
+            // Probably still a generic parameter, so we can't specialize yet.
             return false;
+        }
 
-        // TODO: witness->getOp() != kIROp_NoneWitnessTable
-        auto interfaceType =
-            cast<IRWitnessTableType>(witness->getDataType())->getConformanceType();
-        auto checkInst = builder.getBoolValue(as<IRInterfaceType>(interfaceType));
+        auto checkInst = builder.getBoolValue(isSatisfied);
         inst->replaceUsesWith(checkInst);
         inst->removeAndDeallocate();
         return true;
