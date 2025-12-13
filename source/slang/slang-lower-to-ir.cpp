@@ -6085,12 +6085,9 @@ struct ExprLoweringVisitorBase : public ExprVisitor<Derived, LoweredValInfo>
 
             if (declWitness && declWitness->isOptional())
             {
-                // Optional constraint check. NoneWitness lowers to a specific
-                // ID, so that we can check for that here.
-                auto witnessID = builder->emitGetSequentialIDInst(witness);
-                auto noneWitnessID = builder->getIntValue(builder->getUIntType(), -1);
-                auto irVal = builder->emitNeq(witnessID, noneWitnessID);
-                return LoweredValInfo::simple(irVal);
+                // Optional constraint check.
+                auto val = builder->emitCheckOptionalWitness(witness);
+                return LoweredValInfo::simple(val);
             }
             else
             { // This is a run-time type check from for an existential type.

@@ -666,6 +666,9 @@ struct SpecializationContext
         case kIROp_CountOf:
             return maybeSpecializeCountOf(inst);
 
+        case kIROp_CheckOptionalWitness:
+            return maybeSpecializeCheckOptionalWitness(inst);
+
         case kIROp_Func:
 
             if (tryExpandParameterPack(as<IRFunc>(inst)))
@@ -830,6 +833,25 @@ struct SpecializationContext
         auto newInst = builder.getIntValue(inst->getDataType(), operand->getOperandCount());
         addUsersToWorkList(inst);
         inst->replaceUsesWith(newInst);
+        inst->removeAndDeallocate();
+        return true;
+    }
+
+    bool maybeSpecializeCheckOptionalWitness(IRInst* inst)
+    {
+        IRBuilder builder(module);
+        builder.setInsertBefore(inst);
+
+        auto witness = cast<IRCheckOptionalWitness>(inst)->getWitness();
+        // Only proceed if the witness table is concrete.
+        if (!as<IRWitnessTable>(witness))
+            return false;
+
+        // TODO: witness->getOp() != kIROp_NoneWitnessTable
+        auto interfaceType =
+            cast<IRWitnessTableType>(witness->getDataType())->getConformanceType();
+        auto checkInst = builder.getBoolValue(as<IRInterfaceType>(interfaceType));
+        inst->replaceUsesWith(checkInst);
         inst->removeAndDeallocate();
         return true;
     }

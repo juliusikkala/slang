@@ -3534,6 +3534,8 @@ $(type_info.return_type) $(type_info.method_name)(
 
     IRInst* emitGetSequentialIDInst(IRInst* rttiObj);
 
+    IRInst* emitCheckOptionalWitness(IRInst* witness);
+
     IRInst* emitAlloca(IRInst* type, IRInst* rttiObjPtr);
 
     IRInst* emitGlobalValueRef(IRInst* globalInst);

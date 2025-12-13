@@ -3542,6 +3542,14 @@ IRInst* IRBuilder::emitGetSequentialIDInst(IRInst* rttiObj)
     return inst;
 }
 
+IRInst* IRBuilder::emitCheckOptionalWitness(IRInst* witness)
+{
+    auto inst = createInst<IRCheckOptionalWitness>(
+        this, kIROp_CheckOptionalWitness, getBoolType(), witness);
+    addInst(inst);
+    return inst;
+}
+
 IRInst* IRBuilder::emitBitfieldExtract(IRType* type, IRInst* value, IRInst* offset, IRInst* bits)
 {
     auto inst = createInst<IRInst>(this, kIROp_BitfieldExtract, type, value, offset, bits);

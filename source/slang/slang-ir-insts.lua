@@ -881,6 +881,7 @@ local insts = {
 			operands = { { "param", "IRGlobalGenericParam" }, { "val", "IRInst" } },
 		},
 	},
+	{ CheckOptionalWitness = { operands = { { "witness" } }, hoistable = true } },
 	{ allocObj = {} },
 	{ globalValueRef = { operands = { { "value" } } } },
 	{ makeUInt64 = { operands = { { "low" }, { "high" } } } },
