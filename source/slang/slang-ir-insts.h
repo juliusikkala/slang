@@ -3809,7 +3809,7 @@ $(type_info.return_type) $(type_info.method_name)(
 
     IRInst* getTypeEqualityWitness(IRType* witnessType, IRType* type1, IRType* type2);
 
-    IRInst* createNoneWitnessTable(IRType* baseType);
+    IRInst* createNoneWitnessTable();
 
     IRInterfaceRequirementEntry* createInterfaceRequirementEntry(
         IRInst* requirementKey,

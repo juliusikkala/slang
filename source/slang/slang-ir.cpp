@@ -4619,12 +4619,12 @@ IRInst* IRBuilder::getTypeEqualityWitness(IRType* witnessType, IRType* type1, IR
     return (IRType*)createIntrinsicInst(witnessType, kIROp_TypeEqualityWitness, 2, operands);
 }
 
-IRInst* IRBuilder::createNoneWitnessTable(IRType* baseType)
+IRInst* IRBuilder::createNoneWitnessTable()
 {
     return createInst<IRNoneWitnessTable>(
         this,
         kIROp_NoneWitnessTable,
-        getWitnessTableType(baseType));
+        getWitnessTableType(getVoidType()));
 }
 
 IRStructType* IRBuilder::createStructType()

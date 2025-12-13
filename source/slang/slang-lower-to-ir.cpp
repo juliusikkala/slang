@@ -2104,10 +2104,9 @@ struct ValLoweringVisitor : ValVisitor<ValLoweringVisitor, LoweredValInfo, Lower
             builder->emitGetTupleElement(elementType, conjunctionWitness, indexInConjunction));
     }
 
-    LoweredValInfo visitNoneWitness(NoneWitness* witness)
+    LoweredValInfo visitNoneWitness(NoneWitness*)
     {
-        auto type = lowerType(context, witness->getSup());
-        return LoweredValInfo::simple(getBuilder()->createNoneWitnessTable(type));
+        return LoweredValInfo::simple(getBuilder()->createNoneWitnessTable());
     }
 
     LoweredValInfo visitConstantIntVal(ConstantIntVal* val)
