@@ -154,7 +154,6 @@ public:
     virtual SLANG_NO_THROW LLVMType* SLANG_MCALL getPointerType() = 0;
     virtual SLANG_NO_THROW LLVMType* SLANG_MCALL
     getVectorType(int elementCount, LLVMType* elementType) = 0;
-    virtual SLANG_NO_THROW LLVMType* SLANG_MCALL getBufferType() = 0;
     virtual SLANG_NO_THROW LLVMType* SLANG_MCALL
     getFunctionType(LLVMType* returnType, Slice<LLVMType*> paramTypes, bool variadic = false) = 0;
 
@@ -261,10 +260,6 @@ public:
 
     virtual SLANG_NO_THROW LLVMInst* SLANG_MCALL
     emitPrintf(LLVMInst* format, Slice<LLVMInst*> args, Slice<bool> argIsSigned) = 0;
-    virtual SLANG_NO_THROW LLVMInst* SLANG_MCALL emitGetBufferPtr(LLVMInst* buffer) = 0;
-    virtual SLANG_NO_THROW LLVMInst* SLANG_MCALL emitGetBufferSize(LLVMInst* buffer) = 0;
-    virtual SLANG_NO_THROW LLVMInst* SLANG_MCALL
-    emitChangeBufferStride(LLVMInst* buffer, int64_t prevStride, int64_t newStride) = 0;
 
     //==========================================================================
     // Constant values

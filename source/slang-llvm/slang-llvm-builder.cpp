@@ -202,7 +202,6 @@ public:
     SLANG_NO_THROW LLVMType* SLANG_MCALL getPointerType() override;
     SLANG_NO_THROW LLVMType* SLANG_MCALL
     getVectorType(int elementCount, LLVMType* elementType) override;
-    SLANG_NO_THROW LLVMType* SLANG_MCALL getBufferType() override;
     SLANG_NO_THROW LLVMType* SLANG_MCALL
     getFunctionType(LLVMType* returnType, Slice<LLVMType*> paramTypes, bool variadic) override;
 
@@ -295,10 +294,6 @@ public:
 
     SLANG_NO_THROW LLVMInst* SLANG_MCALL
     emitPrintf(LLVMInst* format, Slice<LLVMInst*> args, Slice<bool> argIsSigned) override;
-    SLANG_NO_THROW LLVMInst* SLANG_MCALL emitGetBufferPtr(LLVMInst* buffer) override;
-    SLANG_NO_THROW LLVMInst* SLANG_MCALL emitGetBufferSize(LLVMInst* buffer) override;
-    SLANG_NO_THROW LLVMInst* SLANG_MCALL
-    emitChangeBufferStride(LLVMInst* buffer, int64_t prevStride, int64_t newStride) override;
 
     // Some operations in Slang IR may have mixed scalar and vector parameters,
     // whereas LLVM IR requires only scalars or only vectors. This function
@@ -803,13 +798,6 @@ LLVMType* LLVMBuilder::getVectorType(int elementCount, LLVMType* elementType)
 {
     auto type = llvm::VectorType::get(elementType, llvm::ElementCount::getFixed(elementCount));
     return type;
-}
-
-LLVMType* LLVMBuilder::getBufferType()
-{
-    return llvm::StructType::get(
-        llvmBuilder->getPtrTy(0),
-        llvmBuilder->getIntPtrTy(targetDataLayout));
 }
 
 LLVMType* LLVMBuilder::getFunctionType(
@@ -1404,37 +1392,6 @@ LLVMInst* LLVMBuilder::emitPrintf(LLVMInst* format, Slice<LLVMInst*> args, Slice
     return llvmBuilder->CreateCall(
         llvmFunc,
         llvm::ArrayRef(legalizedArgs.begin(), legalizedArgs.end()));
-}
-
-LLVMInst* LLVMBuilder::emitGetBufferPtr(LLVMInst* buffer)
-{
-    return llvmBuilder->CreateExtractValue(buffer, 0);
-}
-
-LLVMInst* LLVMBuilder::emitGetBufferSize(LLVMInst* buffer)
-{
-    return llvmBuilder->CreateExtractValue(buffer, 1);
-}
-
-LLVMInst* LLVMBuilder::emitChangeBufferStride(
-    LLVMInst* buffer,
-    int64_t prevStride,
-    int64_t newStride)
-{
-    auto size = llvmBuilder->CreateExtractValue(buffer, 1);
-    if (prevStride != 1)
-    {
-        size = llvmBuilder->CreateMul(
-            size,
-            llvm::ConstantInt::get(llvmBuilder->getIntPtrTy(targetDataLayout), prevStride));
-    }
-    if (newStride != 1)
-    {
-        size = llvmBuilder->CreateUDiv(
-            size,
-            llvm::ConstantInt::get(llvmBuilder->getIntPtrTy(targetDataLayout), newStride));
-    }
-    return llvmBuilder->CreateInsertValue(buffer, size, 1);
 }
 
 void LLVMBuilder::operationPromote(
