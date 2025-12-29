@@ -42,7 +42,6 @@ struct ResourceTypeLoweringContext : InstPassBase
         case kIROp_ConstantBufferType:
         case kIROp_ParameterBlockType:
             {
-
                 layoutRules = getTypeLayoutRuleForBuffer(codeGenContext->getTargetProgram(), type);
                 loweredType = builder.getPtrType(as<IRType>(type->getOperand(0)));
             }
@@ -85,6 +84,10 @@ struct ResourceTypeLoweringContext : InstPassBase
             // We need to explicitly store the layout rules here; otherwise, the
             // LLVM emitter will have no idea what the buffer's layout should
             // be.
+            // TODO: This won't work. Every time getSizeAndAlignment is called,
+            // a new decoration is added for whatever was queried; we can't use
+            // this to enforce a specific layout rule for a pointer like we'd
+            // want to.
             if (layoutRules)
             {
                 auto intType = builder.getIntType();
