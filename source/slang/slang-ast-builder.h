@@ -518,10 +518,12 @@ public:
 
     Type* getDefaultLayoutType();
     Type* getDefaultPushConstantLayoutType();
-    Type* getStd140LayoutType();
-    Type* getStd430LayoutType();
-    Type* getScalarLayoutType();
-    Type* getCLayoutType();
+
+    Type* getDefaultLayoutWrapperType(Type* valueType);
+    Type* getStd140WrapperType(Type* valueType);
+    Type* getStd430WrapperType(Type* valueType);
+    Type* getScalarWrapperType(Type* valueType);
+    Type* getCLayoutWrapperType(Type* valueType);
 
     Type* getInitializerListType() { return m_sharedASTBuilder->getInitializerListType(); }
     Type* getOverloadedType() { return m_sharedASTBuilder->getOverloadedType(); }

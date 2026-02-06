@@ -229,6 +229,13 @@ static Val* _getGenericTypeArg(DeclRefType* declRefType, Index i)
     return _getGenericTypeArg(declRefType->getDeclRefBase(), i);
 }
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DataLayoutWrapperType !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Type* DataLayoutWrapperType::getValueType()
+{
+    return as<Type>(_getGenericTypeArg(this, 0));
+}
+
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TensorViewType !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 Type* TensorViewType::getElementType()
 {

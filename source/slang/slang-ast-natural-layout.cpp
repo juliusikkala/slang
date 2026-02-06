@@ -224,6 +224,11 @@ NaturalSize ASTNaturalLayoutContext::_calcSizeImpl(Type* type)
         // which can be resolved later with target information.
         return NaturalSize::makeInvalid();
     }
+    else if (as<DataLayoutWrapperType>(type))
+    {
+        // We want to handle explicit layouts on the IR level.
+        return NaturalSize::makeInvalid();
+    }
     else if (auto declRefType = as<DeclRefType>(type))
     {
         if (const auto enumDeclRef = declRefType->getDeclRef().as<EnumDecl>())

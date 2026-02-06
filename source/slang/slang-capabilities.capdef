@@ -457,6 +457,10 @@ alias glsl_spirv = glsl | spirv;
 /// [Compound]
 alias glsl_spirv_wgsl = glsl | spirv | wgsl;
 
+/// GLSL, SPIRV, and LLVM code-gen targets
+/// [Compound]
+alias glsl_spirv_llvm = glsl | spirv | llvm;
+
 /// HLSL, and SPIRV code-gen targets
 /// [Compound]
 alias hlsl_spirv = hlsl | spirv;

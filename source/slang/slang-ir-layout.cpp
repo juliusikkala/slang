@@ -477,6 +477,10 @@ Result getSizeAndAlignment(
     IRType* type,
     IRSizeAndAlignment* outSizeAndAlignment)
 {
+    // If the type has an explicit layout wrapper, use that layout regardless
+    // of the context.
+    unwrapExplicitLayoutType(type, &type, &rules);
+
     if (auto decor = findSizeAndAlignmentDecorationForLayout(type, rules->ruleName))
     {
         *outSizeAndAlignment = IRSizeAndAlignment(decor->getSize(), (int)decor->getAlignment());
@@ -926,6 +930,41 @@ IRTypeLayoutRules* IRTypeLayoutRules::get(IRTypeLayoutRuleName name)
     default:
         return nullptr;
     }
+}
+
+bool unwrapExplicitLayoutType(IRType* type, IRType** valueType, IRTypeLayoutRules** rules)
+{
+    if (auto wrapper = as<IRDefaultLayoutWrapperType>(type))
+    {
+        *valueType = wrapper->getValueType();
+        return true;
+    }
+    else if (auto wrapper = as<IRStd140WrapperType>(type))
+    {
+        *rules = IRTypeLayoutRules::getStd140();
+        *valueType = wrapper->getValueType();
+        return true;
+    }
+    else if (auto wrapper = as<IRStd430WrapperType>(type))
+    {
+        *rules = IRTypeLayoutRules::getStd430();
+        *valueType = wrapper->getValueType();
+        return true;
+    }
+    else if (auto wrapper = as<IRScalarWrapperType>(type))
+    {
+        *rules = IRTypeLayoutRules::getNatural();
+        *valueType = wrapper->getValueType();
+        return true;
+    }
+    else if (auto wrapper = as<IRCLayoutWrapperType>(type))
+    {
+        *rules = IRTypeLayoutRules::getC();
+        *valueType = wrapper->getValueType();
+        return true;
+    }
+    *valueType = type;
+    return false;
 }
 
 } // namespace Slang

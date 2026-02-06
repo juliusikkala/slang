@@ -496,17 +496,29 @@ Type* ASTBuilder::getDefaultPushConstantLayoutType()
     return getSpecializedBuiltinType({}, "DefaultPushConstantDataLayoutType");
 }
 
-Type* ASTBuilder::getStd140LayoutType()
+Type* ASTBuilder::getDefaultLayoutWrapperType(Type* valueType)
 {
-    return getSpecializedBuiltinType({}, "Std140DataLayoutType");
+    return getSpecializedBuiltinType(valueType, "DefaultLayoutWrapperType");
 }
-Type* ASTBuilder::getStd430LayoutType()
+
+Type* ASTBuilder::getStd140WrapperType(Type* valueType)
 {
-    return getSpecializedBuiltinType({}, "Std430DataLayoutType");
+    return getSpecializedBuiltinType(valueType, "Std140WrapperType");
 }
-Type* ASTBuilder::getScalarLayoutType()
+
+Type* ASTBuilder::getStd430WrapperType(Type* valueType)
 {
-    return getSpecializedBuiltinType({}, "ScalarDataLayoutType");
+    return getSpecializedBuiltinType(valueType, "Std430WrapperType");
+}
+
+Type* ASTBuilder::getScalarWrapperType(Type* valueType)
+{
+    return getSpecializedBuiltinType(valueType, "ScalarWrapperType");
+}
+
+Type* ASTBuilder::getCLayoutWrapperType(Type* valueType)
+{
+    return getSpecializedBuiltinType(valueType, "CLayoutWrapperType");
 }
 
 // Construct the type `Out<valueType>`

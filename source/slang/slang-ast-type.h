@@ -143,6 +143,50 @@ class BuiltinType : public DeclRefType
 };
 
 FIDDLE(abstract)
+class DataLayoutWrapperType : public BuiltinType
+{
+    FIDDLE(...)
+
+    Type* getValueType();
+};
+
+FIDDLE()
+class IDataLayoutWrapper : public BuiltinType
+{
+    FIDDLE(...)
+};
+
+FIDDLE()
+class DefaultLayoutWrapperType : public DataLayoutWrapperType
+{
+    FIDDLE(...)
+};
+
+FIDDLE()
+class Std140WrapperType : public DataLayoutWrapperType
+{
+    FIDDLE(...)
+};
+
+FIDDLE()
+class Std430WrapperType : public DataLayoutWrapperType
+{
+    FIDDLE(...)
+};
+
+FIDDLE()
+class ScalarWrapperType : public DataLayoutWrapperType
+{
+    FIDDLE(...)
+};
+
+FIDDLE()
+class CLayoutWrapperType : public DataLayoutWrapperType
+{
+    FIDDLE(...)
+};
+
+FIDDLE(abstract)
 class DataLayoutType : public BuiltinType
 {
     FIDDLE(...)

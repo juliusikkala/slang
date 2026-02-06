@@ -726,4 +726,9 @@ return {
 	["IsCoopFloat"] = 724,
 	["Type.OptionalNoneType"] = 725,
 	["ReinterpretOptional"] = 726,
+	["Type.DefaultLayoutWrapper"] = 727,
+	["Type.Std140Wrapper"] = 728,
+	["Type.Std430Wrapper"] = 729,
+	["Type.ScalarWrapper"] = 730,
+	["Type.CLayoutWrapper"] = 731,
 }

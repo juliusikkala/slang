@@ -14,6 +14,55 @@ in uint __builtinWaveLaneCount : SV_WaveLaneCount;
 in uint __builtinQuadLaneIndex : SV_QuadLaneIndex;
 
 //@public:
+/// Represents a type with an explicit data layout. Such wrapped types must only
+/// be used in conjunction with buffer types, pointers or sizeof/alignof
+/// expressions. Buffer types and pointers automatically unwrap the contained
+/// data during indexing or dereferencing.
+[sealed]
+[builtin]
+__magic_type(IDataLayoutWrapper)
+interface IDataLayoutWrapper<T>
+{
+}
+
+/// @category misc_types
+/// This type specifies the default layout. A user of Slang does not need to
+/// specify this manually as not specifying a layout already implies the default
+/// layout. This is also the only layout that can be supported on every target.
+__magic_type(DefaultLayoutWrapperType)
+__intrinsic_type($(kIROp_DefaultLayoutWrapperType))
+struct DefaultLayout<T> : IDataLayoutWrapper<T>
+{};
+
+/// @category misc_types
+[require(glsl_spirv_llvm)]
+__magic_type(Std140WrapperType)
+__intrinsic_type($(kIROp_Std140WrapperType))
+struct Std140<T> : IDataLayoutWrapper<T>
+{};
+
+/// @category misc_types
+[require(glsl_spirv_llvm)]
+__magic_type(Std430WrapperType)
+__intrinsic_type($(kIROp_Std430WrapperType))
+struct Std430<T> : IDataLayoutWrapper<T>
+{};
+
+/// @category misc_types
+[require(cpp_cuda_glsl_hlsl_spirv_llvm)]
+__magic_type(ScalarWrapperType)
+__intrinsic_type($(kIROp_ScalarWrapperType))
+struct Scalar<T> : IDataLayoutWrapper<T>
+{};
+
+/// @category misc_types
+[require(cpp_cuda_spirv_llvm)]
+__magic_type(CLayoutWrapperType)
+__intrinsic_type($(kIROp_CLayoutWrapperType))
+struct CLayout<T> : IDataLayoutWrapper<T>
+{};
+
+//@public:
 /// Represents an interface for buffer data layout.
 /// This interface is used as a base for defining specific data layouts for buffers.
 [sealed]
