@@ -496,29 +496,29 @@ Type* ASTBuilder::getDefaultPushConstantLayoutType()
     return getSpecializedBuiltinType({}, "DefaultPushConstantDataLayoutType");
 }
 
-Type* ASTBuilder::getDefaultLayoutWrapperType(Type* valueType)
+Type* ASTBuilder::getDefaultStorageLayoutType(Type* valueType)
 {
-    return getSpecializedBuiltinType(valueType, "DefaultLayoutWrapperType");
+    return getSpecializedBuiltinType(valueType, "DefaultStorageLayoutType");
 }
 
-Type* ASTBuilder::getStd140WrapperType(Type* valueType)
+Type* ASTBuilder::getStd140StorageLayoutType(Type* valueType)
 {
-    return getSpecializedBuiltinType(valueType, "Std140WrapperType");
+    return getSpecializedBuiltinType(valueType, "Std140StorageLayoutType");
 }
 
-Type* ASTBuilder::getStd430WrapperType(Type* valueType)
+Type* ASTBuilder::getStd430StorageLayoutType(Type* valueType)
 {
-    return getSpecializedBuiltinType(valueType, "Std430WrapperType");
+    return getSpecializedBuiltinType(valueType, "Std430StorageLayoutType");
 }
 
-Type* ASTBuilder::getScalarWrapperType(Type* valueType)
+Type* ASTBuilder::getScalarStorageLayoutType(Type* valueType)
 {
-    return getSpecializedBuiltinType(valueType, "ScalarWrapperType");
+    return getSpecializedBuiltinType(valueType, "ScalarStorageLayoutType");
 }
 
-Type* ASTBuilder::getCLayoutWrapperType(Type* valueType)
+Type* ASTBuilder::getCStorageLayoutType(Type* valueType)
 {
-    return getSpecializedBuiltinType(valueType, "CLayoutWrapperType");
+    return getSpecializedBuiltinType(valueType, "CStorageLayoutType");
 }
 
 // Construct the type `Out<valueType>`

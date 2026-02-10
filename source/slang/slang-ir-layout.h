@@ -142,13 +142,13 @@ Result getStd430SizeAndAlignment(
 ///
 Result getStd430Offset(TargetRequest* targetReq, IRStructField* field, IRIntegerValue* outOffset);
 
-/// Returns true if the type was wrapped in a layout wrapper type.
-/// The value type is then written to `valueType` and the corresponding layout
-/// rules are placed in `rules`.
+/// Returns true if the underlying type was wrapped in a storage layout type.
+/// The underlying type is then written to `valueType` and the corresponding
+/// layout rules are placed in `rules`.
 ///
 /// If false, 'valueType' is set to `type` and `rules` is not overwritten.
 /// You should call this such that you set `rules` to the default layout in
 /// your context.
-bool unwrapExplicitLayoutType(IRType* type, IRType** valueType, IRTypeLayoutRules** rules);
+bool getStorageLayoutUnderlyingType(IRType* type, IRType** valueType, IRTypeLayoutRules** rules);
 
 } // namespace Slang

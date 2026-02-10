@@ -519,11 +519,11 @@ public:
     Type* getDefaultLayoutType();
     Type* getDefaultPushConstantLayoutType();
 
-    Type* getDefaultLayoutWrapperType(Type* valueType);
-    Type* getStd140WrapperType(Type* valueType);
-    Type* getStd430WrapperType(Type* valueType);
-    Type* getScalarWrapperType(Type* valueType);
-    Type* getCLayoutWrapperType(Type* valueType);
+    Type* getDefaultStorageLayoutType(Type* valueType);
+    Type* getStd140StorageLayoutType(Type* valueType);
+    Type* getStd430StorageLayoutType(Type* valueType);
+    Type* getScalarStorageLayoutType(Type* valueType);
+    Type* getCStorageLayoutType(Type* valueType);
 
     Type* getInitializerListType() { return m_sharedASTBuilder->getInitializerListType(); }
     Type* getOverloadedType() { return m_sharedASTBuilder->getOverloadedType(); }

@@ -479,7 +479,7 @@ Result getSizeAndAlignment(
 {
     // If the type has an explicit layout wrapper, use that layout regardless
     // of the context.
-    unwrapExplicitLayoutType(type, &type, &rules);
+    getStorageLayoutUnderlyingType(type, &type, &rules);
 
     if (auto decor = findSizeAndAlignmentDecorationForLayout(type, rules->ruleName))
     {
@@ -932,32 +932,32 @@ IRTypeLayoutRules* IRTypeLayoutRules::get(IRTypeLayoutRuleName name)
     }
 }
 
-bool unwrapExplicitLayoutType(IRType* type, IRType** valueType, IRTypeLayoutRules** rules)
+bool getStorageLayoutUnderlyingType(IRType* type, IRType** valueType, IRTypeLayoutRules** rules)
 {
-    if (auto wrapper = as<IRDefaultLayoutWrapperType>(type))
+    if (auto wrapper = as<IRDefaultStorageLayoutType>(type))
     {
         *valueType = wrapper->getValueType();
         return true;
     }
-    else if (auto wrapper = as<IRStd140WrapperType>(type))
+    else if (auto wrapper = as<IRStd140StorageLayoutType>(type))
     {
         *rules = IRTypeLayoutRules::getStd140();
         *valueType = wrapper->getValueType();
         return true;
     }
-    else if (auto wrapper = as<IRStd430WrapperType>(type))
+    else if (auto wrapper = as<IRStd430StorageLayoutType>(type))
     {
         *rules = IRTypeLayoutRules::getStd430();
         *valueType = wrapper->getValueType();
         return true;
     }
-    else if (auto wrapper = as<IRScalarWrapperType>(type))
+    else if (auto wrapper = as<IRScalarStorageLayoutType>(type))
     {
         *rules = IRTypeLayoutRules::getNatural();
         *valueType = wrapper->getValueType();
         return true;
     }
-    else if (auto wrapper = as<IRCLayoutWrapperType>(type))
+    else if (auto wrapper = as<IRCStorageLayoutType>(type))
     {
         *rules = IRTypeLayoutRules::getC();
         *valueType = wrapper->getValueType();

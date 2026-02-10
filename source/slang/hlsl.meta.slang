@@ -20,8 +20,8 @@ in uint __builtinQuadLaneIndex : SV_QuadLaneIndex;
 /// data during indexing or dereferencing.
 [sealed]
 [builtin]
-__magic_type(IDataLayoutWrapper)
-interface IDataLayoutWrapper<T>
+__magic_type(IStorageLayoutType)
+interface IStorageLayout<T>
 {
 }
 
@@ -29,37 +29,37 @@ interface IDataLayoutWrapper<T>
 /// This type specifies the default layout. A user of Slang does not need to
 /// specify this manually as not specifying a layout already implies the default
 /// layout. This is also the only layout that can be supported on every target.
-__magic_type(DefaultLayoutWrapperType)
-__intrinsic_type($(kIROp_DefaultLayoutWrapperType))
-struct DefaultLayout<T> : IDataLayoutWrapper<T>
+__magic_type(DefaultStorageLayoutType)
+__intrinsic_type($(kIROp_DefaultStorageLayoutType))
+struct DefaultLayout<T> : IStorageLayout<T>
 {};
 
 /// @category misc_types
 [require(glsl_spirv_llvm)]
-__magic_type(Std140WrapperType)
-__intrinsic_type($(kIROp_Std140WrapperType))
-struct Std140<T> : IDataLayoutWrapper<T>
+__magic_type(Std140StorageLayoutType)
+__intrinsic_type($(kIROp_Std140StorageLayoutType))
+struct Std140<T> : IStorageLayout<T>
 {};
 
 /// @category misc_types
 [require(glsl_spirv_llvm)]
-__magic_type(Std430WrapperType)
-__intrinsic_type($(kIROp_Std430WrapperType))
-struct Std430<T> : IDataLayoutWrapper<T>
+__magic_type(Std430StorageLayoutType)
+__intrinsic_type($(kIROp_Std430StorageLayoutType))
+struct Std430<T> : IStorageLayout<T>
 {};
 
 /// @category misc_types
 [require(cpp_cuda_glsl_hlsl_spirv_llvm)]
-__magic_type(ScalarWrapperType)
-__intrinsic_type($(kIROp_ScalarWrapperType))
-struct Scalar<T> : IDataLayoutWrapper<T>
+__magic_type(ScalarStorageLayoutType)
+__intrinsic_type($(kIROp_ScalarStorageLayoutType))
+struct ScalarLayout<T> : IStorageLayout<T>
 {};
 
 /// @category misc_types
 [require(cpp_cuda_spirv_llvm)]
-__magic_type(CLayoutWrapperType)
-__intrinsic_type($(kIROp_CLayoutWrapperType))
-struct CLayout<T> : IDataLayoutWrapper<T>
+__magic_type(CStorageLayoutType)
+__intrinsic_type($(kIROp_CStorageLayoutType))
+struct CLayout<T> : IStorageLayout<T>
 {};
 
 //@public:

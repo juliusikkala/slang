@@ -143,7 +143,7 @@ class BuiltinType : public DeclRefType
 };
 
 FIDDLE(abstract)
-class DataLayoutWrapperType : public BuiltinType
+class StorageLayoutType : public BuiltinType
 {
     FIDDLE(...)
 
@@ -151,37 +151,37 @@ class DataLayoutWrapperType : public BuiltinType
 };
 
 FIDDLE()
-class IDataLayoutWrapper : public BuiltinType
+class IStorageLayoutType : public BuiltinType
 {
     FIDDLE(...)
 };
 
 FIDDLE()
-class DefaultLayoutWrapperType : public DataLayoutWrapperType
+class DefaultStorageLayoutType : public StorageLayoutType
 {
     FIDDLE(...)
 };
 
 FIDDLE()
-class Std140WrapperType : public DataLayoutWrapperType
+class Std140StorageLayoutType : public StorageLayoutType
 {
     FIDDLE(...)
 };
 
 FIDDLE()
-class Std430WrapperType : public DataLayoutWrapperType
+class Std430StorageLayoutType : public StorageLayoutType
 {
     FIDDLE(...)
 };
 
 FIDDLE()
-class ScalarWrapperType : public DataLayoutWrapperType
+class ScalarStorageLayoutType : public StorageLayoutType
 {
     FIDDLE(...)
 };
 
 FIDDLE()
-class CLayoutWrapperType : public DataLayoutWrapperType
+class CStorageLayoutType : public StorageLayoutType
 {
     FIDDLE(...)
 };

@@ -224,7 +224,7 @@ NaturalSize ASTNaturalLayoutContext::_calcSizeImpl(Type* type)
         // which can be resolved later with target information.
         return NaturalSize::makeInvalid();
     }
-    else if (as<DataLayoutWrapperType>(type))
+    else if (as<StorageLayoutType>(type))
     {
         // We want to handle explicit layouts on the IR level.
         return NaturalSize::makeInvalid();

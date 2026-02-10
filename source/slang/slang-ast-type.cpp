@@ -229,9 +229,9 @@ static Val* _getGenericTypeArg(DeclRefType* declRefType, Index i)
     return _getGenericTypeArg(declRefType->getDeclRefBase(), i);
 }
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! DataLayoutWrapperType !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! StorageLayoutType !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Type* DataLayoutWrapperType::getValueType()
+Type* StorageLayoutType::getValueType()
 {
     return as<Type>(_getGenericTypeArg(this, 0));
 }
