@@ -21,8 +21,9 @@ in uint __builtinQuadLaneIndex : SV_QuadLaneIndex;
 [sealed]
 [builtin]
 __magic_type(IStorageLayoutType)
-interface IStorageLayout<T>
+interface IStorageLayout
 {
+    associatedtype ValueType;
 }
 
 /// @category misc_types
@@ -31,36 +32,46 @@ interface IStorageLayout<T>
 /// layout. This is also the only layout that can be supported on every target.
 __magic_type(DefaultStorageLayoutType)
 __intrinsic_type($(kIROp_DefaultStorageLayoutType))
-struct DefaultLayout<T> : IStorageLayout<T>
-{};
+struct DefaultLayout<T> : IStorageLayout
+{
+    typealias ValueType = T;
+}
 
 /// @category misc_types
 [require(glsl_spirv_llvm)]
 __magic_type(Std140StorageLayoutType)
 __intrinsic_type($(kIROp_Std140StorageLayoutType))
-struct Std140<T> : IStorageLayout<T>
-{};
+struct Std140<T> : IStorageLayout
+{
+    typealias ValueType = T;
+}
 
 /// @category misc_types
 [require(glsl_spirv_llvm)]
 __magic_type(Std430StorageLayoutType)
 __intrinsic_type($(kIROp_Std430StorageLayoutType))
-struct Std430<T> : IStorageLayout<T>
-{};
+struct Std430<T> : IStorageLayout
+{
+    typealias ValueType = T;
+}
 
 /// @category misc_types
 [require(cpp_cuda_glsl_hlsl_spirv_llvm)]
 __magic_type(ScalarStorageLayoutType)
 __intrinsic_type($(kIROp_ScalarStorageLayoutType))
-struct ScalarLayout<T> : IStorageLayout<T>
-{};
+struct ScalarLayout<T> : IStorageLayout
+{
+    typealias ValueType = T;
+}
 
 /// @category misc_types
 [require(cpp_cuda_spirv_llvm)]
 __magic_type(CStorageLayoutType)
 __intrinsic_type($(kIROp_CStorageLayoutType))
-struct CLayout<T> : IStorageLayout<T>
-{};
+struct CLayout<T> : IStorageLayout
+{
+    typealias ValueType = T;
+}
 
 //@public:
 /// Represents an interface for buffer data layout.

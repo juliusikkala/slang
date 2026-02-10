@@ -282,6 +282,13 @@ SubtypeWitness* SemanticsVisitor::checkAndConstructSubtypeWitness(
             return nullptr;
         return m_astBuilder->getEachSubtypeWitness(subType, superType, elementWitness);
     }
+    else if (auto storageType = as<IStorageLayoutType>(superType))
+    {
+        // Special handling for StorageLayout - all types have fallback
+        // conformance to it by acting as if they are DefaultStorageLayout<T>.
+        auto wrappedSubType = m_astBuilder->getDefaultStorageLayoutType(subType);
+        return isSubtype(wrappedSubType, superType, isSubTypeOptions);
+    }
     // default is failure
     return failureWitness;
 }

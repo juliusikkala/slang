@@ -139,6 +139,16 @@ Type* SharedASTBuilder::getIBufferDataLayoutType()
     return m_IBufferDataLayoutType;
 }
 
+Type* SharedASTBuilder::getIStorageLayoutType()
+{
+    if (!m_IStorageLayoutType)
+    {
+        auto decl = findMagicDecl("IStorageLayoutType");
+        m_IStorageLayoutType = DeclRefType::create(m_astBuilder, makeDeclRef<Decl>(decl));
+    }
+    return m_IStorageLayoutType;
+}
+
 Type* SharedASTBuilder::getErrorType()
 {
     if (!m_errorType)

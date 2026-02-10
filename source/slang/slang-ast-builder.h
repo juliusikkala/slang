@@ -43,6 +43,7 @@ public:
     Type* getDiffInterfaceType();
 
     Type* getIBufferDataLayoutType();
+    Type* getIStorageLayoutType();
 
     Type* getErrorType();
     Type* getBottomType();
@@ -92,6 +93,7 @@ protected:
     Type* m_initializerListType = nullptr;
     Type* m_overloadedType = nullptr;
     Type* m_IBufferDataLayoutType = nullptr;
+    Type* m_IStorageLayoutType = nullptr;
 
     // The following types are created lazily, such that part of their definition
     // can be in the core module.
