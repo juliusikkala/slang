@@ -23,7 +23,7 @@ void checkUnsupportedInst(TargetRequest* target, IRFunc* func, DiagnosticSink* s
     }
 }
 
-void checkUnsupportedInst(TargetRequest* target, IRModule* module, DiagnosticSink* sink)
+void checkUnsupportedInst(IRModule* module, TargetRequest* target, DiagnosticSink* sink)
 {
     for (auto globalInst : module->getGlobalInsts())
     {
@@ -32,7 +32,8 @@ void checkUnsupportedInst(TargetRequest* target, IRModule* module, DiagnosticSin
         case kIROp_VectorType:
         case kIROp_MatrixType:
             {
-                if (!as<IRBasicType>(globalInst->getOperand(0)))
+                if (!as<IRBasicType>(globalInst->getOperand(0)) &&
+                    !as<IRPackedFloatType>(globalInst->getOperand(0)))
                 {
                     sink->diagnose(
                         findFirstUseLoc(globalInst),

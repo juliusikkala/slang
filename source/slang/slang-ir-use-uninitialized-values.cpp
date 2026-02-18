@@ -19,6 +19,7 @@ static bool isMetaOp(IRInst* inst)
     case kIROp_IsSignedInt:
     case kIROp_IsHalf:
     case kIROp_IsFloat:
+    case kIROp_IsCoopFloat:
     case kIROp_IsVector:
     case kIROp_GetNaturalStride:
     case kIROp_TypeEquals:
@@ -640,7 +641,19 @@ static void checkUninitializedValues(IRFunc* func, DiagnosticSink* sink)
             auto loads = getUnresolvedVariableLoads(reachability, inst);
             for (auto load : loads)
             {
-                sink->diagnose(load, Diagnostics::usingUninitializedVariable, inst);
+                // Check if we have a meaningful name for the variable
+                bool hasName = inst->findDecoration<IRNameHintDecoration>() != nullptr ||
+                               inst->findDecoration<IRLinkageDecoration>() != nullptr;
+
+                if (hasName)
+                {
+                    sink->diagnose(load, Diagnostics::usingUninitializedVariable, inst);
+                }
+                else
+                {
+                    // For poison ops and other unnamed instructions, show type instead
+                    sink->diagnose(load, Diagnostics::usingUninitializedValue, type);
+                }
             }
         }
     }

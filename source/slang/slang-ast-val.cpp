@@ -1201,7 +1201,9 @@ Val* PolynomialIntVal::_substituteImplOverride(
 
             if (auto constantVal = as<ConstantIntVal>(substResult))
             {
-                evaluatedTermConstFactor *= constantVal->getValue();
+                auto power = factor->getPower();
+                for (IntegerLiteralValue i = 0; i < power; i++)
+                    evaluatedTermConstFactor *= constantVal->getValue();
             }
             else if (auto intResult = as<IntVal>(substResult))
             {
@@ -1690,7 +1692,7 @@ Val* FuncCallIntVal::tryFoldImpl(
         LOGICAL_OPERATOR_CASE(&&)
         LOGICAL_OPERATOR_CASE(||)
         // Special cases need their "operator" names quoted.
-        SPECIAL_OPERATOR_CASE("!", resultValue = ((constArgs[0]->getValue() != 0) ? 1 : 0);)
+        SPECIAL_OPERATOR_CASE("!", resultValue = ((constArgs[0]->getValue() == 0) ? 1 : 0);)
         SPECIAL_OPERATOR_CASE("~", resultValue = ~constArgs[0]->getValue();)
         SPECIAL_OPERATOR_CASE("?:",
                               resultValue = constArgs[0]->getValue() != 0
@@ -2139,6 +2141,7 @@ void UIntSet::unionWith(const UIntSetVal& set)
     // UIntSetVal has getBitmask accessor that returns Elements
     const Index setCount = set.getBitmaskCount();
     const Index minCount = Math::Min(setCount, m_buffer.getCount());
+    m_buffer.reserve(setCount);
 
     for (Index i = 0; i < minCount; ++i)
     {
