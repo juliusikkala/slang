@@ -1181,6 +1181,43 @@ Modifier* SemanticsVisitor::validateAttribute(
         }
         return attr;
     }
+    else if (auto bufferTypeImplAttr = as<CPUBufferTypeImplAttribute>(attr))
+    {
+        if (attr->args.getCount() > 1)
+        {
+            getSink()->diagnose(attr, Diagnostics::tooManyArguments, attr->args.getCount(), 0);
+            return nullptr;
+        }
+        else if (attr->args.getCount() < 1)
+        {
+            getSink()->diagnose(attr, Diagnostics::notEnoughArguments, attr->args.getCount(), 1);
+            return nullptr;
+        }
+
+        String bufferTypeName;
+        if (auto stringLitExpr = as<StringLiteralExpr>(attr->args[0]))
+        {
+            bufferTypeName = getStringLiteralTokenValue(stringLitExpr->token);
+        }
+        else
+        {
+            getSink()->diagnose(attr->args[0], Diagnostics::expectedAStringLiteral);
+            return nullptr;
+        }
+
+        if (bufferTypeName == "StructuredBuffer")
+        {
+            bufferTypeImplAttr->bufferType = SLANG_STRUCTURED_BUFFER;
+            // TODO: Check existence of required members and decorate them so
+            // that they can be found later.
+        }
+        else
+        {
+            getSink()->diagnose(attr->args[0], Diagnostics::unknownResourceTypeName, bufferTypeName);
+        }
+
+        return attr;
+    }
     else
     {
         if (attr->args.getCount() == 0)

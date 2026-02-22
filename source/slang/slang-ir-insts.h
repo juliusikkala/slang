@@ -5139,6 +5139,15 @@ $(type_info.return_type) $(type_info.method_name)(
 
     void addRayPayloadDecoration(IRType* inst) { addDecoration(inst, kIROp_RayPayloadDecoration); }
 
+    void addCPUBufferTypeImplDecoration(IRInst* inst, SlangResourceShape type)
+    {
+        addDecoration(
+            inst,
+            kIROp_CPUBufferTypeImplDecoration,
+            getIntValue(getIntType(), type));
+    }
+
+
     IRSetBase* getSet(IROp op, const HashSet<IRInst*>& elements);
 
     IRSetBase* getSingletonSet(IROp op, IRInst* element);

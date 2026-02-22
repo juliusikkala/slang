@@ -1459,6 +1459,12 @@ static void addLinkageDecoration(
                 builder->addKnownBuiltinDecoration(inInst, KnownBuiltinDeclName(enumValue));
             }
         }
+        else if (auto bufferTypeImplModifier = as<CPUBufferTypeImplAttribute>(modifier))
+        {
+            builder->addCPUBufferTypeImplDecoration(inst, bufferTypeImplModifier->bufferType);
+            builder->addKeepAliveDecoration(inst);
+            builder->addHLSLExportDecoration(inst);
+        }
     }
     if (as<InterfaceDecl>(decl->parentDecl) &&
         decl->parentDecl->hasModifier<ComInterfaceAttribute>() &&

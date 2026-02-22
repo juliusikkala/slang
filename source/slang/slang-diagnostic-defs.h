@@ -1907,6 +1907,13 @@ DIAGNOSTIC(
     matrixColumnOrRowCountIsOne,
     "matrices with 1 column or row are not supported by the current code generation target")
 
+DIAGNOSTIC(
+    39999,
+    Error,
+    unknownResourceTypeName,
+    "unrecognized resource type name '$0' for CPUBufferTypeImpl")
+
+
 // 38xxx
 
 DIAGNOSTIC(

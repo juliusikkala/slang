@@ -77,6 +77,7 @@
 #include "slang-ir-lower-binding-query.h"
 #include "slang-ir-lower-bit-cast.h"
 #include "slang-ir-lower-buffer-element-type.h"
+#include "slang-ir-lower-buffer-type.h"
 #include "slang-ir-lower-combined-texture-sampler.h"
 #include "slang-ir-lower-coopvec.h"
 #include "slang-ir-lower-dynamic-dispatch-insts.h"
@@ -1802,6 +1803,11 @@ Result linkAndOptimizeIR(
         validateIRModuleIfEnabled(codeGenContext, irModule);
         break;
     }
+
+    // Lower buffer types into ordinary structs on the LLVM target, so that
+    // further passes apply on them as well.
+    if (isCPUTargetViaLLVM(targetRequest))
+        SLANG_PASS(lowerBufferTypes, targetProgram, codeGenContext->getSink());
 
     // TODO: our current dynamic dispatch pass will remove all uses of witness tables.
     // If we are going to support function-pointer based, "real" modular dynamic dispatch,

@@ -1700,6 +1700,15 @@ class ComInterfaceAttribute : public Attribute
     FIDDLE() String guid;
 };
 
+/// Used to mark a user-defined struct as the implementation of a built-in
+/// buffer type on CPU targets.
+FIDDLE()
+class CPUBufferTypeImplAttribute : public Attribute
+{
+    FIDDLE(...)
+    SlangResourceShape bufferType;
+};
+
 /// A `[__requiresNVAPI]` attribute indicates that the declaration being modifed
 /// requires NVAPI operations for its implementation on D3D.
 FIDDLE()

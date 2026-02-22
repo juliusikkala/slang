@@ -4581,6 +4581,12 @@ attribute_syntax [PyExport(name: String)] : PyExportAttribute;
 __attributeTarget(InterfaceDecl)
 attribute_syntax [COM(guid: String)] : ComInterfaceAttribute;
 
+/// @experimental
+/// Mark a struct as the implementation of a buffer type. Valid only on CPU target.
+/// @param bufferType Name of the buffer type, e.g. RWStructuredBuffer
+__attributeTarget(AggTypeDecl)
+attribute_syntax [CPUBufferTypeImpl(bufferType: String)] : CPUBufferTypeImplAttribute;
+
 // Inheritance Control
 
 /// @experimental

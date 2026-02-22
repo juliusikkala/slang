@@ -1896,6 +1896,14 @@ local insts = {
 				},
 			},
 			{
+				CPUBufferTypeImpl = {
+                    -- Marks a struct as the implementation of a buffer type on
+                    -- CPU targets. The integer parameter is SlangResourceShape.
+					struct_name = "CPUBufferTypeImplDecoration",
+					operands = { { "bufferType", "IRIntLit" } },
+				},
+			},
+			{
 				KnownBuiltinDecoration = {
 					-- Attaches a name to this instruction so that it can be identified
 					-- later in the compiler reliably
