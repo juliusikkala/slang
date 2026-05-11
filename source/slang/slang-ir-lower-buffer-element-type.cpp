@@ -703,7 +703,7 @@ struct LoweredElementTypeContext
                     loweredInnerTypeInfo.loweredType,
                     arrayType->getElementCount(),
                     needExplicitLayout ? builder.getIntValue(
-                                             builder.getIntType(),
+                                             builder.getUIntType(),
                                              elementSizeAlignment.getStride())
                                        : nullptr);
                 builder.createStructField(loweredType, structKey, innerArrayType);
@@ -729,7 +729,7 @@ struct LoweredElementTypeContext
                     loweredInnerTypeInfo.loweredType,
                     nullptr,
                     needExplicitLayout ? builder.getIntValue(
-                                             builder.getIntType(),
+                                             builder.getUIntType(),
                                              elementSizeAlignment.getStride())
                                        : nullptr);
                 maybeAddPhysicalTypeDecoration(builder, innerArrayType, config);
@@ -1585,6 +1585,30 @@ struct LoweredElementTypeContext
         auto clonedFunc = as<IRFunc>(cloneInst(&cloneEnv, &builder, call->getCallee()));
         List<IRUse*> uses;
 
+        // If our cloned function has uses already, that means it's calling
+        // itself (= is recursive). Such uses are problematic, as the
+        // `specializedFunc` cache won't contain the newly cloned function,
+        // causing an infinite loop of specialization. The original has already
+        // been handled though, so we can just swap the calls back to calling
+        // the original function and avoid such loops.
+        if (clonedFunc->hasUses())
+        {
+            // Replace all self-calls with the original function. This cuts
+            // the loop, as `specializedFunc` cache contains the original
+            // function now.
+            cloneEnv.mapOldValToNew.remove(clonedFunc);
+            cloneEnv.mapOldValToNew.add(clonedFunc, call->getCallee());
+            traverseUsers<IRCall>(
+                clonedFunc,
+                [&](IRCall* user)
+                {
+                    builder.setInsertBefore(user);
+                    auto newCall = cloneInst(&cloneEnv, &builder, user);
+                    user->replaceUsesWith(newCall);
+                    user->removeAndDeallocate();
+                });
+        }
+
         // If a parameter is being translated to storage type,
         // insert a cast to convert it to logical type.
         List<IRParam*> params;
@@ -1749,14 +1773,8 @@ struct LoweredElementTypeContext
                     // derived from some other base address. We will let
                     // the later part of the pass to systematically propagate
                     // the cast through them.
-                    switch (user->getOp())
-                    {
-                    case kIROp_FieldAddress:
-                    case kIROp_GetElementPtr:
-                    case kIROp_GetOffsetPtr:
-                    case kIROp_RWStructuredBufferGetElementPtr:
+                    if (isAddressInst(user))
                         return;
-                    }
                     auto ptrVal = use->getUser();
                     setInsertAfterOrdinaryInst(&builder, ptrVal);
                     builder.replaceOperand(use, loweredBufferType);
@@ -2389,6 +2407,12 @@ IRTypeLayoutRuleName getTypeLayoutRuleNameForBuffer(TargetProgram* target, IRTyp
                                                      : kIROp_DefaultBufferLayoutType;
 
         IRTypeLayoutRuleName defaultRule = IRTypeLayoutRuleName::Natural;
+        // SPIR-V storage-buffer pointers inherit the same std430 default as
+        // GLSLShaderStorageBuffer when no explicit data layout is attached, so stride
+        // computations match the ArrayStride decorations emitted later.
+        if (target->shouldEmitSPIRVDirectly() &&
+            ptrType->getAddressSpace() == AddressSpace::StorageBuffer)
+            defaultRule = IRTypeLayoutRuleName::Std430;
         if (isCPUTargetViaLLVM(targetReq))
             defaultRule = IRTypeLayoutRuleName::LLVM;
 
@@ -2683,7 +2707,7 @@ struct DefaultBufferElementTypeLoweringPolicy : BufferElementTypeLoweringPolicy
                 vectorType,
                 isColMajor ? matrixType->getColumnCount() : matrixType->getRowCount(),
                 needExplicitLayout
-                    ? builder.getIntValue(builder.getIntType(), elementSizeAlignment.getStride())
+                    ? builder.getIntValue(builder.getUIntType(), elementSizeAlignment.getStride())
                     : nullptr);
             builder.createStructField(loweredType, structKey, arrayType);
 
